@@ -67,7 +67,7 @@ namespace SentienceTakehome.Networking
         public event Action<WsGameState> GameState;
 
 #if UNITY_WEBGL && !UNITY_EDITOR
-        private WebSocket _webglWs;
+        private NativeWebSocket.WebSocket _webglWs;
 #else
         private ClientWebSocket _ws;
         private CancellationTokenSource _cts;
@@ -85,10 +85,9 @@ namespace SentienceTakehome.Networking
 
         private void Update()
         {
-#if UNITY_WEBGL && !UNITY_EDITOR
-            // NativeWebSocket requires pumping messages on main thread.
-            _webglWs?.DispatchMessageQueue();
-#endif
+            // Note: NativeWebSocket's DispatchMessageQueue() is needed on some non-WebGL platforms.
+            // On WebGL, messages are already delivered on the main thread, and some package versions
+            // don't expose DispatchMessageQueue() on WebGL builds.
             while (_mainThread.TryDequeue(out var a))
             {
                 try { a(); }
@@ -123,7 +122,7 @@ namespace SentienceTakehome.Networking
                     await Disconnect("reconnect");
                 }
 
-                _webglWs = new WebSocket(serverUrl);
+                _webglWs = new NativeWebSocket.WebSocket(serverUrl);
 
                 _webglWs.OnOpen += () => EnqueueMain(() => Connected?.Invoke());
                 _webglWs.OnError += (msg) =>
