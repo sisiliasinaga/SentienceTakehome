@@ -31,5 +31,7 @@ sentience_takehome/*.symbols.json
 
 server/node_modules/
 server/dist/
+server/.agents/
+server/.env
 server/npm-debug.log*
 server/.DS_Store
