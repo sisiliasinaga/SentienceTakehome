@@ -1059,7 +1059,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fcc0bcdba74830245b27788b3bd72d9f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  serverUrl: wss://sentiencetakehome.onrender.com
+  serverUrl: wss://sentiencetakehome.onrender.com/ws
   autoConnect: 0
 --- !u!4 &414437789
 Transform:
