@@ -177,6 +177,9 @@ public class PlacementController : MonoBehaviour
 
     public void ConfirmFleet()
     {
+        // Don't rely on stale inspector state; always use latest session mode.
+        useMultiplayer = GameSession.Mode == GameMode.Multiplayer;
+
         if (!allShipsPlaced)
         {
             ui.SetFeedback("You must place all ships before confirming.");
