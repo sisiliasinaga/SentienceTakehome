@@ -35,6 +35,13 @@ public class PlacementController : MonoBehaviour
     private readonly Color validPreviewColor = Color.green;
     private readonly Color invalidPreviewColor = Color.red;
 
+    private void OnEnable()
+    {
+        // This object often persists while panels are toggled.
+        // Re-apply mode whenever the placement panel is shown.
+        useMultiplayer = GameSession.Mode == GameMode.Multiplayer;
+    }
+
     // Start is called before the first frame update
     private void Start()
     {
