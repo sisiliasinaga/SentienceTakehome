@@ -228,7 +228,6 @@ public class GridManager : MonoBehaviour
             var gp = gridParent as RectTransform;
             if (gp == null || gp.parent == null)
             {
-                Debug.LogWarning($"{nameof(GridManager)}: gridParent must be a RectTransform with a parent for ship overlays.");
                 return gp;
             }
 

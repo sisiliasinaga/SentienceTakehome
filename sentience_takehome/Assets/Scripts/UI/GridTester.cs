@@ -14,8 +14,6 @@ public class GridTester : MonoBehaviour
 
     private void OnCellClicked(Coordinate coord)
     {
-        Debug.Log($"Cell clicked: {coord}");
-
         // Visual feedback
         gridManager.SetCellColor(coord, Color.red);
     }

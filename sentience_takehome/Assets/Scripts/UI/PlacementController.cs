@@ -203,8 +203,6 @@ public class PlacementController : MonoBehaviour
     {
         bool placed = playerBoard.PlaceShip(currentShip, coord, currentOrientation);
 
-        Debug.Log($"Placing {currentShip} at {coord} facing {currentOrientation}");
-
         if (placed)
         {
             placedFleet.Add(new WsFleetShip
@@ -297,7 +295,6 @@ public class PlacementController : MonoBehaviour
     private void ToggleOrientation()
     {
         currentOrientation = currentOrientation == Orientation.Horizontal ? Orientation.Vertical : Orientation.Horizontal;
-        Debug.Log($"Orientation changed to {currentOrientation}");
 
         ui.SetOrientation(currentOrientation);
 
@@ -330,8 +327,6 @@ public class PlacementController : MonoBehaviour
         };
 
         ui.SetCurrentShip(currentShip);
-
-        Debug.Log($"Next ship to place: {currentShip}");
     }
 
     public void ConfirmFleet()

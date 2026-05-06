@@ -91,7 +91,7 @@ namespace SentienceTakehome.Networking
             while (_mainThread.TryDequeue(out var a))
             {
                 try { a(); }
-                catch (Exception e) { Debug.LogException(e); }
+                catch (Exception) { }
             }
         }
 

@@ -59,8 +59,6 @@ public class BattleController : MonoBehaviour
         ui.SetTurn(true);
         ui.SetFeedback("Battle started. Choose a target.");
         ui.ClearGameOver();
-
-        Debug.Log("Battle started. Player turn.");
     }
 
     public void StartMultiplayerWithPlayerBoard(Board completedPlayerBoard, WsBattleshipClient client)
@@ -113,12 +111,10 @@ public class BattleController : MonoBehaviour
         if (result.ResultType == ShotResultType.AlreadyShot ||
             result.ResultType == ShotResultType.Invalid)
         {
-            Debug.Log($"Invalid shot: {result.ResultType}");
             return;
         }
 
         RenderShotOnOpponentGrid(result);
-        Debug.Log($"Player sunk AI's {result.SunkShipType}");
 
         if (result.ResultType == ShotResultType.Sunk)
         {
@@ -129,7 +125,6 @@ public class BattleController : MonoBehaviour
         if (opponentBoard.AllShipsSunk)
         {
             gameOver = true;
-            Debug.Log("Player wins!");
             ui.SetGameOver("You win!");
             ui.SetTurn(false);
             ui.ShowGameOver("You win!", $"Turns: {turnCount}", $"Ships sunk: {opponentShipsSunk}/5");
@@ -152,7 +147,6 @@ public class BattleController : MonoBehaviour
 
         RenderShotOnPlayerGrid(result);
         ui.SetFeedback($"Enemy fired at {target}: {result.ResultType}");
-        Debug.Log($"Opponent fired at {target}: {result.ResultType}");
 
         if (result.ResultType == ShotResultType.Sunk)
         {
