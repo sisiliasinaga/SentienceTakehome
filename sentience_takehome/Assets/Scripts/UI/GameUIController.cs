@@ -4,6 +4,7 @@ using UnityEngine;
 using TMPro;
 using JetBrains.Annotations;
 using UnityEngine.UI;
+using SentienceTakehome;
 
 public class GameUIController : MonoBehaviour
 {
@@ -102,6 +103,7 @@ public class GameUIController : MonoBehaviour
 
     public void ShowStartPanel()
     {
+        GameSession.Mode = GameMode.VsAI;
         startPanel.SetActive(true);
         mainPanel.SetActive(false);
         multiplayerPanel.SetActive(false);
@@ -117,6 +119,7 @@ public class GameUIController : MonoBehaviour
 
     public void ShowMultiplayerPanel()
     {
+        GameSession.Mode = GameMode.Multiplayer;
         startPanel.SetActive(false);
         mainPanel.SetActive(false);
         multiplayerPanel.SetActive(true);
@@ -132,6 +135,7 @@ public class GameUIController : MonoBehaviour
 
     public void ShowCreateGamePanel()
     {
+        GameSession.Mode = GameMode.Multiplayer;
         startPanel.SetActive(false);
         multiplayerPanel.SetActive(false);  
         mainPanel.SetActive(false);
@@ -147,6 +151,7 @@ public class GameUIController : MonoBehaviour
 
     public void ShowJoinGamePanel()
     {
+        GameSession.Mode = GameMode.Multiplayer;
         startPanel.SetActive(false);
         multiplayerPanel.SetActive(false);
         mainPanel.SetActive(false);
