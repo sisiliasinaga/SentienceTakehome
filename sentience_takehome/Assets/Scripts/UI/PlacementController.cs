@@ -200,6 +200,7 @@ public class PlacementController : MonoBehaviour
         ui.SetFeedback("Fleet confirmed. Submitting to server...");
         _ = wsClient.SubmitFleet(placedFleet.ToArray());
         _ = wsClient.ReadyUp();
+        battleController.StartMultiplayerWithPlayerBoard(playerBoard, wsClient);
         ui.SetFeedback("Waiting for opponent...");
         gameObject.SetActive(false);
     }

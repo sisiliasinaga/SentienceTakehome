@@ -40,6 +40,14 @@ public class GridCell : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         OnCellClicked?.Invoke(new Coordinate(Row, Col));
     }
 
+    public void SetInteractable(bool interactable)
+    {
+        if (button != null)
+        {
+            button.interactable = interactable;
+        }
+    }
+
     public void OnPointerEnter(PointerEventData eventData)
     {
         OnCellHovered?.Invoke(new Coordinate(Row, Col));

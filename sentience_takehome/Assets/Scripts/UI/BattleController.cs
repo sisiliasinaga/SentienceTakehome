@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using SentienceTakehome.Networking;
 
 public class BattleController : MonoBehaviour
 {
@@ -18,6 +19,9 @@ public class BattleController : MonoBehaviour
 
     private bool isPlayerTurn = true;
     private bool gameOver = false;
+    private bool isMultiplayer = false;
+
+    private WsBattleshipClient wsClient;
 
     private int turnCount = 0;
     private int playerShipsSunk = 0;
@@ -31,6 +35,9 @@ public class BattleController : MonoBehaviour
     // Start is called before the first frame update
     public void StartBattleWithPlayerBoard(Board completedPlayerBoard)
     {
+        isMultiplayer = false;
+        UnwireMultiplayer();
+
         playerBoard = completedPlayerBoard;
         opponentBoard = new Board();
 
@@ -50,9 +57,43 @@ public class BattleController : MonoBehaviour
         Debug.Log("Battle started. Player turn.");
     }
 
+    public void StartMultiplayerWithPlayerBoard(Board completedPlayerBoard, WsBattleshipClient client)
+    {
+        isMultiplayer = true;
+        wsClient = client;
+        WireMultiplayer();
+
+        playerBoard = completedPlayerBoard;
+        opponentBoard = null;
+
+        opponentGrid.GenerateGrid(OnOpponentGridClicked);
+        RenderPlayerShips();
+
+        // Wait for server BattleStart/Turn messages.
+        isPlayerTurn = false;
+        gameOver = false;
+        turnCount = 0;
+        playerShipsSunk = 0;
+        opponentShipsSunk = 0;
+
+        ui.SetTurn(false);
+        ui.SetFeedback("Waiting for opponent to confirm fleet...");
+        ui.ClearGameOver();
+
+        // Disable firing until server says it's your turn.
+        opponentGrid.SetInteractable(false);
+    }
+
     private void OnOpponentGridClicked(Coordinate coord)
     {
         if (gameOver || !isPlayerTurn) return;
+
+        if (isMultiplayer)
+        {
+            _ = wsClient.FireAt(coord);
+            // turn state will be updated by server via Turn message
+            return;
+        }
 
         ShotResult result = opponentBoard.FireAt(coord);
         turnCount++;
@@ -90,6 +131,7 @@ public class BattleController : MonoBehaviour
 
     private void OpponentTakeTurn()
     {
+        if (isMultiplayer) return;
         if (gameOver) return;
 
         ui.SetTurn(false);
@@ -116,6 +158,115 @@ public class BattleController : MonoBehaviour
         }
 
         isPlayerTurn = true;
+    }
+
+    private void WireMultiplayer()
+    {
+        if (wsClient == null) return;
+        wsClient.BattleStart += OnWsBattleStart;
+        wsClient.Turn += OnWsTurn;
+        wsClient.FireResult += OnWsFireResult;
+        wsClient.IncomingFire += OnWsIncomingFire;
+        wsClient.GameOver += OnWsGameOver;
+        wsClient.OpponentDisconnected += OnWsOpponentDisconnected;
+    }
+
+    private void UnwireMultiplayer()
+    {
+        if (wsClient == null) return;
+        wsClient.BattleStart -= OnWsBattleStart;
+        wsClient.Turn -= OnWsTurn;
+        wsClient.FireResult -= OnWsFireResult;
+        wsClient.IncomingFire -= OnWsIncomingFire;
+        wsClient.GameOver -= OnWsGameOver;
+        wsClient.OpponentDisconnected -= OnWsOpponentDisconnected;
+    }
+
+    private void OnWsBattleStart(WsBattleStart msg)
+    {
+        if (!isMultiplayer) return;
+        ui.SetFeedback("Battle started!");
+    }
+
+    private void OnWsTurn(WsTurn msg)
+    {
+        if (!isMultiplayer) return;
+        isPlayerTurn = msg.Yours;
+        ui.SetTurn(isPlayerTurn);
+        opponentGrid.SetInteractable(isPlayerTurn);
+        if (isPlayerTurn)
+        {
+            ui.SetFeedback("Your turn. Choose a target.");
+        }
+        else
+        {
+            ui.SetFeedback("Enemy turn...");
+        }
+    }
+
+    private void OnWsFireResult(WsFireResult msg)
+    {
+        if (!isMultiplayer) return;
+        turnCount++;
+        var coord = new Coordinate(msg.Row, msg.Col);
+        if (msg.Result == "Miss")
+        {
+            opponentGrid.SetCellColor(coord, missColor);
+        }
+        else
+        {
+            opponentGrid.SetCellColor(coord, hitColor);
+        }
+
+        if (msg.Result == "Sunk")
+        {
+            opponentShipsSunk++;
+            ui.SetFeedback($"You sunk the opponent's {msg.SunkShipType}!");
+        }
+    }
+
+    private void OnWsIncomingFire(WsIncomingFire msg)
+    {
+        if (!isMultiplayer) return;
+        var coord = new Coordinate(msg.Row, msg.Col);
+        if (msg.Result == "Miss")
+        {
+            playerGrid.SetCellColor(coord, missColor);
+        }
+        else
+        {
+            playerGrid.SetCellColor(coord, hitColor);
+        }
+
+        if (msg.Result == "Sunk")
+        {
+            playerShipsSunk++;
+            ui.SetFeedback($"Opponent sunk your {msg.SunkShipType}");
+        }
+    }
+
+    private void OnWsGameOver(WsGameOver msg)
+    {
+        if (!isMultiplayer) return;
+        gameOver = true;
+        opponentGrid.SetInteractable(false);
+        var youWin = wsClient != null && wsClient.PlayerIndex.HasValue && wsClient.PlayerIndex.Value == msg.WinnerPlayerIndex;
+        if (youWin)
+        {
+            ui.ShowGameOver("You win!", $"Turns: {turnCount}", $"Ships sunk: {opponentShipsSunk}/5");
+        }
+        else
+        {
+            ui.ShowGameOver("Opponent wins!", $"Turns: {turnCount}", $"Ships sunk: {playerShipsSunk}/5");
+        }
+    }
+
+    private void OnWsOpponentDisconnected()
+    {
+        if (!isMultiplayer) return;
+        gameOver = true;
+        opponentGrid.SetInteractable(false);
+        ui.ShowGameOver("Opponent disconnected", $"Turns: {turnCount}", $"Ships sunk: {opponentShipsSunk}/5");
     }
 
     private void RenderShotOnOpponentGrid(ShotResult result)
@@ -338,5 +489,10 @@ public class BattleController : MonoBehaviour
     public void ReturntoMainMenu()
     {
         SceneManager.LoadScene("MainMenu");
+    }
+
+    private void OnDestroy()
+    {
+        UnwireMultiplayer();
     }
 }

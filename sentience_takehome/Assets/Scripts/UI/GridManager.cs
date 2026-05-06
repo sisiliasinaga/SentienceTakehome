@@ -44,4 +44,15 @@ public class GridManager : MonoBehaviour
             }
         }
     }
+
+    public void SetInteractable(bool interactable)
+    {
+        for (int row = 0; row < BattleshipRules.BoardSize; row++)
+        {
+            for (int col = 0; col < BattleshipRules.BoardSize; col++)
+            {
+                cells[row, col].SetInteractable(interactable);
+            }
+        }
+    }
 }
