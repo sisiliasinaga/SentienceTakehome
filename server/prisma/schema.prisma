@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GameMode {
+  ai
+  multiplayer
+}
+
+enum GameStatus {
+  waiting
+  placement
+  battle
+  completed
+}
+
+model Game {
+  id                 BigInt     @id @default(autoincrement())
+  roomCode           String     @unique @map("room_code")
+  mode               GameMode   @default(multiplayer)
+  status             GameStatus
+  currentTurn        Int?       @map("current_turn")
+  playerOneTokenHash String     @map("player_one_token_hash")
+  playerTwoTokenHash String?    @map("player_two_token_hash")
+  stateJson          Json       @map("state_json")
+  winnerIndex        Int?       @map("winner_index")
+  createdAt          DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  completedAt        DateTime?  @map("completed_at") @db.Timestamptz(6)
+
+  moves              Move[]
+
+  @@map("games")
+  @@index([status])
+  @@index([mode])
+}
+
+model Move {
+  id          BigInt   @id @default(autoincrement())
+  gameId      BigInt   @map("game_id")
+  playerIndex Int      @map("player_index")
+  targetRow   Int      @map("target_row")
+  targetCol   Int      @map("target_col")
+  result      String
+  sunkShipType String? @map("sunk_ship_type")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  game        Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@map("moves")
+  @@index([gameId])
+}
+
