@@ -3692,7 +3692,7 @@ MonoBehaviour:
   gridManager: {fileID: 1295607869}
   battleController: {fileID: 82966174}
   ui: {fileID: 1277877153}
-  wsClient: {fileID: 0}
+  wsClient: {fileID: 414437788}
   useMultiplayer: 0
   confirmFleetButton: {fileID: 1453302660}
   resetFleetButton: {fileID: 1441114037}

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using SentienceTakehome.Networking;
 using SentienceTakehome;
+using System.Threading.Tasks;
 
 public class PlacementController : MonoBehaviour
 {
@@ -40,6 +41,11 @@ public class PlacementController : MonoBehaviour
         // This object often persists while panels are toggled.
         // Re-apply mode whenever the placement panel is shown.
         useMultiplayer = GameSession.Mode == GameMode.Multiplayer;
+
+        if (useMultiplayer)
+        {
+            _ = EnsureConnectedForMultiplayer();
+        }
     }
 
     // Start is called before the first frame update
@@ -58,6 +64,37 @@ public class PlacementController : MonoBehaviour
         ui.SetOrientation(currentOrientation);
         ui.SetFeedback("Place your fleet.");
         ui.ClearGameOver();
+    }
+
+    private async Task EnsureConnectedForMultiplayer()
+    {
+        if (wsClient == null)
+        {
+            ui.SetFeedback("Multiplayer selected, but wsClient is not assigned.");
+            return;
+        }
+
+        if (wsClient.IsConnected)
+        {
+            return;
+        }
+
+        ui.SetFeedback("Connecting to server...");
+
+        try
+        {
+            await wsClient.Connect(wsClient.serverUrl);
+
+            // If we already have a room + token (e.g., returning from UI panels), resume.
+            if (!string.IsNullOrEmpty(GameSession.RoomCode) && !string.IsNullOrEmpty(GameSession.PlayerToken))
+            {
+                await wsClient.Resume(GameSession.RoomCode, GameSession.PlayerToken);
+            }
+        }
+        catch (System.Exception e)
+        {
+            ui.SetFeedback($"Could not connect: {e.Message}");
+        }
     }
 
     // Update is called once per frame
