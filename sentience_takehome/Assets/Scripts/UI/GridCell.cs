@@ -48,6 +48,13 @@ public class GridCell : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
         }
     }
 
+    /// <summary>Stop placement preview hover after battle starts (handlers survive disabled scripts).</summary>
+    public void ClearHoverHandlers()
+    {
+        OnCellHovered = null;
+        OnCellHoverExited = null;
+    }
+
     public void OnPointerEnter(PointerEventData eventData)
     {
         OnCellHovered?.Invoke(new Coordinate(Row, Col));

@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using SentienceTakehome.Networking;
 using SentienceTakehome;
 using System.Threading.Tasks;
@@ -28,13 +29,19 @@ public class PlacementController : MonoBehaviour
     private ShipType currentShip = ShipType.Carrier;
     private Orientation currentOrientation = Orientation.Horizontal;
 
-    private readonly List<Coordinate> previewCoordinates = new();
     private readonly List<WsFleetShip> placedFleet = new();
+    private readonly List<Coordinate> previewCoordinates = new();
 
     private readonly Color emptyColor = Color.white;
     private readonly Color shipColor = Color.gray;
     private readonly Color validPreviewColor = Color.green;
     private readonly Color invalidPreviewColor = Color.red;
+
+    /// <summary>Cell under the pointer; used to refresh preview when orientation changes (R).</summary>
+    private Coordinate? lastHoveredCell;
+
+    /// <summary>Prevents double-toggle when R is seen via GetKeyDown, inputString, and OnGUI in one frame.</summary>
+    private int _rotateConsumedAtFrame = -1;
 
     private void OnEnable()
     {
@@ -55,9 +62,11 @@ public class PlacementController : MonoBehaviour
         useMultiplayer = GameSession.Mode == GameMode.Multiplayer;
 
         ui.HideGameOver();
+        ui.SetTurnIndicatorVisible(false);
+        ui.SetFleetPlacementInfoVisible(true);
 
         playerBoard = new Board();
-        gridManager.GenerateGrid(OnCellClicked, OnCellHovered, ClearPreview);
+        gridManager.GenerateGrid(OnCellClicked, OnCellHovered, OnHoverExitGrid);
         confirmFleetButton.SetActive(false);
 
         ui.SetCurrentShip(currentShip);
@@ -100,10 +109,94 @@ public class PlacementController : MonoBehaviour
     // Update is called once per frame
     private void Update()
     {
-        if (Input.GetKeyDown(KeyCode.R))
+        if (allShipsPlaced)
         {
-            ToggleOrientation();
+            return;
         }
+
+        // Right-click, R via Input Manager, or R via typed character (WebGL / some builds).
+        if (Input.GetMouseButtonDown(1) ||
+            Input.GetKeyDown(KeyCode.R) ||
+            InputStringHasRotateLetter())
+        {
+            TryRotateFromUser();
+        }
+    }
+
+    private void OnGUI()
+    {
+        if (!Application.isPlaying || allShipsPlaced)
+        {
+            return;
+        }
+
+        var e = Event.current;
+        if (e == null || e.type != EventType.KeyDown || e.keyCode != KeyCode.R)
+        {
+            return;
+        }
+
+        TryRotateFromUser();
+    }
+
+    private static bool InputStringHasRotateLetter()
+    {
+        var s = Input.inputString;
+        for (var i = 0; i < s.Length; i++)
+        {
+            var c = s[i];
+            if (c == 'r' || c == 'R')
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void TryRotateFromUser()
+    {
+        if (_rotateConsumedAtFrame == Time.frameCount)
+        {
+            return;
+        }
+
+        _rotateConsumedAtFrame = Time.frameCount;
+
+        var underPointer = TryGetPlacementCellUnderPointer();
+        if (underPointer.HasValue)
+        {
+            lastHoveredCell = underPointer;
+        }
+
+        ToggleOrientation();
+    }
+
+    private Coordinate? TryGetPlacementCellUnderPointer()
+    {
+        if (EventSystem.current == null || gridManager == null || gridManager.gridParent == null)
+        {
+            return null;
+        }
+
+        var eventData = new PointerEventData(EventSystem.current)
+        {
+            position = Input.mousePosition
+        };
+
+        var hits = new List<RaycastResult>();
+        EventSystem.current.RaycastAll(eventData, hits);
+
+        foreach (var hit in hits)
+        {
+            var cell = hit.gameObject.GetComponent<GridCell>();
+            if (cell != null && cell.transform.IsChildOf(gridManager.gridParent))
+            {
+                return new Coordinate(cell.Row, cell.Col);
+            }
+        }
+
+        return null;
     }
 
     private void OnCellClicked(Coordinate coord)
@@ -122,7 +215,9 @@ public class PlacementController : MonoBehaviour
                 Orientation = currentOrientation.ToString()
             });
             ClearPreview();
-            ColorPlacedShip(coord);
+            gridManager.ClearBattleDecorations();
+            gridManager.RenderShipHullsFromBoard(playerBoard);
+            RefreshPlacementCellUnderlays();
             ui.SetFeedback($"Placed {currentShip}");
             AdvanceToNextShip();
         }
@@ -134,49 +229,68 @@ public class PlacementController : MonoBehaviour
 
     private void OnCellHovered(Coordinate coord)
     {
-        ClearPreview();
-
-        previewCoordinates.Clear();
-
-        var coords = BattleshipRules.GetShipCoordinates(coord, currentShip, currentOrientation);
-        bool valid = playerBoard.CanPlaceShip(currentShip, coord, currentOrientation);
-        Color previewColor = valid ? validPreviewColor : invalidPreviewColor;
-
-        foreach (var previewCoord in coords)
+        lastHoveredCell = coord;
+        if (allShipsPlaced)
         {
-            if (!BattleshipRules.IsWithinBounds(previewCoord))
-            {
-                continue;
-            }
-
-            previewCoordinates.Add(previewCoord);
-            gridManager.SetCellColor(previewCoord, previewColor);
+            ClearPreview();
+            return;
         }
+
+        RefreshPlacementHoverVisuals(coord);
+    }
+
+    private void OnHoverExitGrid()
+    {
+        lastHoveredCell = null;
+        ClearPreview();
     }
 
     private void ClearPreview()
     {
-        foreach (var coord in previewCoordinates)
+        ClearPreviewCellTints();
+        gridManager.HidePlacementPreview();
+    }
+
+    private void ClearPreviewCellTints()
+    {
+        foreach (var pc in previewCoordinates)
         {
-            if (playerBoard.HasShipAt(coord))
-            {
-                gridManager.SetCellColor(coord, shipColor);
-            }
-            else
-            {
-                gridManager.SetCellColor(coord, emptyColor);
-            }
+            gridManager.SetCellColor(pc, playerBoard.HasShipAt(pc) ? shipColor : emptyColor);
         }
+
         previewCoordinates.Clear();
     }
 
-    private void ColorPlacedShip(Coordinate start)
+    private void RefreshPlacementHoverVisuals(Coordinate coord)
     {
-        var coords = BattleshipRules.GetShipCoordinates(start, currentShip, currentOrientation);
+        ClearPreviewCellTints();
 
-        foreach (var coord in coords)
+        bool valid = playerBoard.CanPlaceShip(currentShip, coord, currentOrientation);
+        var previewColor = valid ? validPreviewColor : invalidPreviewColor;
+        var coords = BattleshipRules.GetShipCoordinates(coord, currentShip, currentOrientation);
+        foreach (var pc in coords)
         {
-            gridManager.SetCellColor(coord, shipColor);
+            if (!BattleshipRules.IsWithinBounds(pc))
+            {
+                continue;
+            }
+
+            previewCoordinates.Add(pc);
+            gridManager.SetCellColor(pc, previewColor);
+        }
+
+        gridManager.UpdatePlacementPreview(currentShip, coord, currentOrientation, valid);
+    }
+
+    private void RefreshPlacementCellUnderlays()
+    {
+        for (var r = 0; r < BattleshipRules.BoardSize; r++)
+        {
+            for (var c = 0; c < BattleshipRules.BoardSize; c++)
+            {
+                var coord = new Coordinate(r, c);
+                gridManager.SetCellColor(coord, playerBoard.HasShipAt(coord) ? shipColor : emptyColor);
+            }
         }
     }
 
@@ -186,6 +300,13 @@ public class PlacementController : MonoBehaviour
         Debug.Log($"Orientation changed to {currentOrientation}");
 
         ui.SetOrientation(currentOrientation);
+
+        if (allShipsPlaced || !lastHoveredCell.HasValue)
+        {
+            return;
+        }
+
+        RefreshPlacementHoverVisuals(lastHoveredCell.Value);
     }
 
     private void AdvanceToNextShip()
@@ -194,6 +315,7 @@ public class PlacementController : MonoBehaviour
         {
             ui.SetFeedback("Fleet ready. Battle started!");
             allShipsPlaced = true;
+            ClearPreview();
             confirmFleetButton.SetActive(true);
             return;
         }
@@ -229,6 +351,10 @@ public class PlacementController : MonoBehaviour
 
         if (!useMultiplayer)
         {
+            ui.SetFleetPlacementInfoVisible(false);
+            // Remove placement hover; GridCell delegates still fire if this script is only disabled.
+            ClearPreview();
+            gridManager.ClearHoverHandlers();
             ui.SetFeedback("Fleet confirmed. Starting AI battle...");
             battleController.StartBattleWithPlayerBoard(playerBoard);
             gameObject.SetActive(false);
@@ -244,6 +370,9 @@ public class PlacementController : MonoBehaviour
             return;
         }
 
+        ui.SetFleetPlacementInfoVisible(false);
+        ClearPreview();
+        gridManager.ClearHoverHandlers();
         ui.SetFeedback("Fleet confirmed. Submitting to server...");
         _ = wsClient.SubmitFleet(placedFleet.ToArray());
         _ = wsClient.ReadyUp();
@@ -254,14 +383,14 @@ public class PlacementController : MonoBehaviour
 
     private void RenderPlacedFleet()
     {
-        foreach (var coord in playerBoard.GetShipCoordinates())
-        {
-            gridManager.SetCellColor(coord, shipColor);
-        }
+        gridManager.ClearBattleDecorations();
+        gridManager.RenderShipHullsFromBoard(playerBoard);
+        RefreshPlacementCellUnderlays();
     }
 
     public void ResetFleet()
     {
+        lastHoveredCell = null;
         ClearPreview();
 
         playerBoard = new Board();
@@ -271,6 +400,7 @@ public class PlacementController : MonoBehaviour
         currentOrientation = Orientation.Horizontal;
         allShipsPlaced = false;
 
+        gridManager.ClearBattleDecorations();
         gridManager.ClearGrid(emptyColor);
 
         if (confirmFleetButton != null)
@@ -280,11 +410,13 @@ public class PlacementController : MonoBehaviour
 
         ui.SetCurrentShip(currentShip);
         ui.SetOrientation(currentOrientation);
+        ui.SetFleetPlacementInfoVisible(true);
         ui.SetFeedback("Fleet reset.Place your carrier.");
     }
 
     public void AutoPlaceFleet()
     {
+        lastHoveredCell = null;
         ClearPreview();
 
         playerBoard = new Board();
@@ -329,6 +461,7 @@ public class PlacementController : MonoBehaviour
         RenderPlacedFleet();
 
         allShipsPlaced = true;
+        ClearPreview();
 
         if (confirmFleetButton != null)
         {

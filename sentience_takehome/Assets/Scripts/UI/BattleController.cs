@@ -24,7 +24,7 @@ public class BattleController : MonoBehaviour
     private WsBattleshipClient wsClient;
 
     private int turnCount = 0;
-    private int playerShipsSunk = 0;
+    /// <summary>Enemy ships sunk by the local player (game over Ships sunk line).</summary>
     private int opponentShipsSunk = 0;
 
     private readonly Color emptyColor = Color.white;
@@ -41,6 +41,11 @@ public class BattleController : MonoBehaviour
         playerBoard = completedPlayerBoard;
         opponentBoard = new Board();
 
+        if (playerGrid != null)
+        {
+            playerGrid.ClearHoverHandlers();
+        }
+
         opponentGrid.GenerateGrid(OnOpponentGridClicked);
 
         RandomlyPlaceFleet(opponentBoard);
@@ -50,6 +55,7 @@ public class BattleController : MonoBehaviour
         isPlayerTurn = true;
         gameOver = false;
 
+        ui.SetTurnIndicatorVisible(true);
         ui.SetTurn(true);
         ui.SetFeedback("Battle started. Choose a target.");
         ui.ClearGameOver();
@@ -66,6 +72,11 @@ public class BattleController : MonoBehaviour
         playerBoard = completedPlayerBoard;
         opponentBoard = null;
 
+        if (playerGrid != null)
+        {
+            playerGrid.ClearHoverHandlers();
+        }
+
         opponentGrid.GenerateGrid(OnOpponentGridClicked);
         RenderPlayerShips();
 
@@ -73,9 +84,9 @@ public class BattleController : MonoBehaviour
         isPlayerTurn = false;
         gameOver = false;
         turnCount = 0;
-        playerShipsSunk = 0;
         opponentShipsSunk = 0;
 
+        ui.SetTurnIndicatorVisible(false);
         ui.SetTurn(false);
         ui.SetFeedback("Waiting for opponent to confirm fleet...");
         ui.ClearGameOver();
@@ -146,14 +157,13 @@ public class BattleController : MonoBehaviour
         if (result.ResultType == ShotResultType.Sunk)
         {
             ui.SetFeedback($"Opponent sunk your {result.SunkShipType}");
-            playerShipsSunk++;
         }
 
         if (playerBoard.AllShipsSunk)
         {
             gameOver = true;
             ui.SetFeedback("Opponent wins!");
-            ui.ShowGameOver("Opponent wins!", $"Turns: {turnCount}", $"Ships sunk: {playerShipsSunk}/5");
+            ui.ShowGameOver("Opponent wins!", $"Turns: {turnCount}", $"Ships sunk: {opponentShipsSunk}/5");
             return;
         }
 
@@ -192,6 +202,7 @@ public class BattleController : MonoBehaviour
     {
         if (!isMultiplayer) return;
         isPlayerTurn = msg.Yours;
+        ui.SetTurnIndicatorVisible(true);
         ui.SetTurn(isPlayerTurn);
         opponentGrid.SetInteractable(isPlayerTurn);
         if (isPlayerTurn)
@@ -240,8 +251,12 @@ public class BattleController : MonoBehaviour
 
         if (msg.Result == "Sunk")
         {
-            playerShipsSunk++;
             ui.SetFeedback($"Opponent sunk your {msg.SunkShipType}");
+            if (!string.IsNullOrEmpty(msg.SunkShipType) &&
+                System.Enum.TryParse(msg.SunkShipType, true, out ShipType sunkType))
+            {
+                playerGrid.DimPlayerHullForSunkShip(sunkType, coord);
+            }
         }
     }
 
@@ -257,7 +272,7 @@ public class BattleController : MonoBehaviour
         }
         else
         {
-            ui.ShowGameOver("Opponent wins!", $"Turns: {turnCount}", $"Ships sunk: {playerShipsSunk}/5");
+            ui.ShowGameOver("Opponent wins!", $"Turns: {turnCount}", $"Ships sunk: {opponentShipsSunk}/5");
         }
     }
 
@@ -288,19 +303,31 @@ public class BattleController : MonoBehaviour
         {
             playerGrid.SetCellColor(result.Coordinate, missColor);
         }
-        else if (result.ResultType == ShotResultType.Hit || 
-            result.ResultType == ShotResultType.Sunk)
+        else if (result.ResultType == ShotResultType.Hit ||
+                 result.ResultType == ShotResultType.Sunk)
         {
             playerGrid.SetCellColor(result.Coordinate, hitColor);
+        }
+
+        if (result.ResultType == ShotResultType.Sunk && result.SunkShipType.HasValue)
+        {
+            playerGrid.DimPlayerHullForSunkShip(result.SunkShipType.Value, result.Coordinate);
         }
     }
 
     private void RenderPlayerShips()
     {
-        foreach (var coord in playerBoard.GetShipCoordinates())
+        playerGrid.ClearBattleDecorations();
+        for (var r = 0; r < BattleshipRules.BoardSize; r++)
         {
-            playerGrid.SetCellColor(coord, shipColor);
+            for (var c = 0; c < BattleshipRules.BoardSize; c++)
+            {
+                var coord = new Coordinate(r, c);
+                playerGrid.SetCellColor(coord, playerBoard.HasShipAt(coord) ? shipColor : emptyColor);
+            }
         }
+
+        playerGrid.RenderShipHullsFromBoard(playerBoard);
     }
 
     private void PlaceTestPlayerShips()

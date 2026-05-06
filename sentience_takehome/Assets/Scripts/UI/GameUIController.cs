@@ -49,12 +49,34 @@ public class GameUIController : MonoBehaviour
 
     public void SetOrientation(Orientation orientation)
     {
-        orientationText.text = $"Orientation: {orientation}";
+        orientationText.text =
+            $"Orientation: {orientation} — Press R or right-click to rotate";
     }
 
     public void SetTurn(bool isPlayerTurn)
     {
         turnText.text = isPlayerTurn ? "Your Turn" : "Enemy Turn";
+    }
+
+    public void SetTurnIndicatorVisible(bool visible)
+    {
+        if (turnText != null)
+        {
+            turnText.gameObject.SetActive(visible);
+        }
+    }
+
+    public void SetFleetPlacementInfoVisible(bool visible)
+    {
+        if (currentShipText != null)
+        {
+            currentShipText.gameObject.SetActive(visible);
+        }
+
+        if (orientationText != null)
+        {
+            orientationText.gameObject.SetActive(visible);
+        }
     }
 
     public void SetFeedback(string message)
