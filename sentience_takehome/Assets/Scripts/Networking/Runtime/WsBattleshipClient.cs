@@ -124,18 +124,38 @@ namespace SentienceTakehome.Networking
 
                 _webglWs = new NativeWebSocket.WebSocket(serverUrl);
 
-                _webglWs.OnOpen += () => EnqueueMain(() => Connected?.Invoke());
+                var tcs = new TaskCompletionSource<bool>();
+
+                _webglWs.OnOpen += () =>
+                {
+                    EnqueueMain(() => Connected?.Invoke());
+                    tcs.TrySetResult(true);
+                };
                 _webglWs.OnError += (msg) =>
+                {
                     EnqueueMain(() => Error?.Invoke(new WsError { Op = "Error", Code = "SocketError", Detail = msg }));
+                    tcs.TrySetException(new Exception(msg));
+                };
                 _webglWs.OnClose += (code) =>
+                {
                     EnqueueMain(() => Disconnected?.Invoke($"close:{code}"));
+                    tcs.TrySetException(new Exception($"WebSocket closed ({code})"));
+                };
                 _webglWs.OnMessage += (bytes) =>
                 {
                     var text = Encoding.UTF8.GetString(bytes);
                     HandleIncoming(text);
                 };
 
-                await _webglWs.Connect();
+                // Some NativeWebSocket builds can hang awaiting Connect().
+                // Kick off connect, then await open/error/close with a timeout.
+                _ = _webglWs.Connect();
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(8000));
+                if (completed != tcs.Task)
+                {
+                    throw new Exception("WebSocket connect timed out");
+                }
+                await tcs.Task;
 #else
                 _cts?.Cancel();
                 _cts = new CancellationTokenSource();
