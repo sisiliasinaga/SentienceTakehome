@@ -1,14 +1,12 @@
-import pg from "pg";
+import { Pool } from "pg";
 import type { GameMode, GameRow, GameStatus, GameStore } from "./types.js";
-
-const { Pool } = pg;
 
 function toRow(r: Record<string, unknown>): GameRow {
   return r as unknown as GameRow;
 }
 
 export class PostgresGameStore implements GameStore {
-  private readonly pool: pg.Pool;
+  private readonly pool: Pool;
 
   constructor(connectionString: string) {
     this.pool = new Pool({ connectionString });
