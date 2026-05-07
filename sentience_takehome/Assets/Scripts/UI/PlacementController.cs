@@ -85,6 +85,10 @@ public class PlacementController : MonoBehaviour
         ui.SetFleetPlacementInfoVisible(true);
 
         playerBoard = new Board();
+        if (gridManager != null)
+        {
+            gridManager.SetVisible(true);
+        }
         gridManager.GenerateGrid(OnCellClicked, OnCellHovered, OnHoverExitGrid);
         confirmFleetButton.SetActive(false);
 
@@ -155,6 +159,7 @@ public class PlacementController : MonoBehaviour
         ui.SetFleetPlacementInfoVisible(false);
         ClearPreview();
         gridManager.ClearHoverHandlers();
+        gridManager.SetVisible(false);
         battleController.StartMultiplayerFromSnapshot(wsClient, msg);
         gameObject.SetActive(false);
     }
@@ -169,6 +174,7 @@ public class PlacementController : MonoBehaviour
         // Rebuild board + fleet list so ConfirmFleet can submit to the server.
         playerBoard = new Board();
         placedFleet.Clear();
+        gridManager.SetVisible(true);
 
         if (msg.YourFleet != null)
         {
@@ -526,6 +532,7 @@ public class PlacementController : MonoBehaviour
         ui.SetFleetPlacementInfoVisible(false);
         ClearPreview();
         gridManager.ClearHoverHandlers();
+        gridManager.SetVisible(false);
         ui.SetFeedback("Fleet confirmed. Submitting to server...");
         _ = wsClient.SubmitFleet(placedFleet.ToArray());
         _ = wsClient.ReadyUp();
@@ -545,6 +552,10 @@ public class PlacementController : MonoBehaviour
     {
         lastHoveredCell = null;
         ClearPreview();
+        if (gridManager != null)
+        {
+            gridManager.SetVisible(true);
+        }
 
         playerBoard = new Board();
         placedFleet.Clear();
@@ -571,6 +582,10 @@ public class PlacementController : MonoBehaviour
     {
         lastHoveredCell = null;
         ClearPreview();
+        if (gridManager != null)
+        {
+            gridManager.SetVisible(true);
+        }
 
         playerBoard = new Board();
         placedFleet.Clear();

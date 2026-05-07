@@ -35,6 +35,24 @@ public class GridManager : MonoBehaviour
 
     private static readonly Vector3[] CornerScratch = new Vector3[4];
 
+    public void SetVisible(bool visible)
+    {
+        if (gridParent != null)
+        {
+            gridParent.gameObject.SetActive(visible);
+        }
+
+        if (_frontShipLayer != null)
+        {
+            _frontShipLayer.gameObject.SetActive(visible);
+        }
+
+        if (!visible)
+        {
+            HidePlacementPreview();
+        }
+    }
+
     public void GenerateGrid(System.Action<Coordinate> onCellClick,
         System.Action<Coordinate> onCellHover = null,
         System.Action onCellHoverExit = null)
