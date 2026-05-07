@@ -157,6 +157,11 @@ export class Room {
     }
   }
 
+  // Used after resume/reconnect to force clients back in sync.
+  public syncTurnState(): void {
+    this.sendTurnState();
+  }
+
   tryResume(playerToken: string, ws: WebSocket): 0 | 1 | null {
     const slot: 0 | 1 | null =
       this.playerTokens[0] === playerToken
@@ -809,6 +814,7 @@ export class Matchmaker {
       });
       send(ws, { Op: "Resumed", RoomId: room.Id, Code: room.Code, PlayerIndex: slot });
       send(ws, room.getSnapshotFor(slot));
+      room.syncTurnState();
       return;
     }
 
