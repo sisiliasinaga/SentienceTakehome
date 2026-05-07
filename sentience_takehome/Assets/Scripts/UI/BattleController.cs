@@ -289,6 +289,7 @@ public class BattleController : MonoBehaviour
     {
         if (!isMultiplayer) return;
         _lastSnapshot = msg;
+        ui.SetFeedback($"[sync] GameState Phase={msg.Phase} Code={msg.Code} YourTurn={msg.YourTurn}");
         ApplySnapshot(msg);
     }
 

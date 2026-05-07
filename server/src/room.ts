@@ -786,6 +786,12 @@ export class Matchmaker {
       }
 
       this.rooms.set(ws, { room, slot });
+      console.log("[resume]", {
+        code: room.Code,
+        roomId: room.Id,
+        slot,
+        phase: (room as any).phase,
+      });
       send(ws, { Op: "Resumed", RoomId: room.Id, Code: room.Code, PlayerIndex: slot });
       send(ws, room.getSnapshotFor(slot));
       return;
