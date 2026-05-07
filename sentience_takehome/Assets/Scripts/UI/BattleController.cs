@@ -29,6 +29,7 @@ public class BattleController : MonoBehaviour
 
     private WsGameState _lastSnapshot;
     private Coroutine _pendingHullRender;
+    private bool _opponentDisconnectedBanner = false;
 
     private readonly Color emptyColor = Color.white;
     private readonly Color shipColor = Color.gray;
@@ -102,6 +103,11 @@ public class BattleController : MonoBehaviour
 
         if (isMultiplayer)
         {
+            if (wsClient == null || !wsClient.IsConnected)
+            {
+                ui.SetFeedback("Not connected. Reconnecting...");
+                return;
+            }
             _ = wsClient.FireAt(coord);
             // turn state will be updated by server via Turn message
             return;
@@ -174,6 +180,8 @@ public class BattleController : MonoBehaviour
         wsClient.Turn += OnWsTurn;
         wsClient.FireResult += OnWsFireResult;
         wsClient.IncomingFire += OnWsIncomingFire;
+        wsClient.FireRejected += OnWsFireRejected;
+        wsClient.Error += OnWsError;
         wsClient.GameOver += OnWsGameOver;
         wsClient.OpponentDisconnected += OnWsOpponentDisconnected;
         wsClient.OpponentReconnected += OnWsOpponentReconnected;
@@ -187,6 +195,8 @@ public class BattleController : MonoBehaviour
         wsClient.Turn -= OnWsTurn;
         wsClient.FireResult -= OnWsFireResult;
         wsClient.IncomingFire -= OnWsIncomingFire;
+        wsClient.FireRejected -= OnWsFireRejected;
+        wsClient.Error -= OnWsError;
         wsClient.GameOver -= OnWsGameOver;
         wsClient.OpponentDisconnected -= OnWsOpponentDisconnected;
         wsClient.OpponentReconnected -= OnWsOpponentReconnected;
@@ -237,6 +247,20 @@ public class BattleController : MonoBehaviour
         }
     }
 
+    private void OnWsFireRejected(WsFireRejected msg)
+    {
+        if (!isMultiplayer) return;
+        ui.SetFeedback($"Shot rejected at ({msg.Row},{msg.Col}): {msg.Reason}");
+    }
+
+    private void OnWsError(WsError msg)
+    {
+        if (!isMultiplayer) return;
+        if (msg == null) return;
+        ui.SetFeedback($"Network error: {msg.Code}");
+        Debug.Log($"[ws-error] {msg.Code} {msg.Detail}");
+    }
+
     private void OnWsIncomingFire(WsIncomingFire msg)
     {
         if (!isMultiplayer) return;
@@ -282,6 +306,7 @@ public class BattleController : MonoBehaviour
         if (!isMultiplayer) return;
         // Don't end the match locally; allow the opponent to refresh and resume.
         // The server keeps the room alive and will send a GameState snapshot on resume.
+        _opponentDisconnectedBanner = true;
         opponentGrid.SetInteractable(false);
         ui.SetTurn(false);
         ui.SetTurnIndicatorVisible(true);
@@ -343,6 +368,12 @@ public class BattleController : MonoBehaviour
             return;
         }
 
+        // Clear any stale disconnect banner once the server says the opponent is back.
+        if (_opponentDisconnectedBanner && snapshot.OpponentConnected)
+        {
+            _opponentDisconnectedBanner = false;
+        }
+
         // Render ship hull sprites (your own fleet) if provided.
         TryRenderHullOverlaysFromFleet(snapshot);
 
@@ -381,7 +412,11 @@ public class BattleController : MonoBehaviour
         }
 
         ui.SetTurnIndicatorVisible(true);
-        ui.SetFeedback(isPlayerTurn ? "Your turn. Choose a target." : "Enemy turn...");
+        // Only overwrite the banner text if we aren't actively showing a disconnect message.
+        if (!_opponentDisconnectedBanner)
+        {
+            ui.SetFeedback(isPlayerTurn ? "Your turn. Choose a target." : "Enemy turn...");
+        }
     }
 
     private void TryRenderHullOverlaysFromFleet(WsGameState snapshot)
