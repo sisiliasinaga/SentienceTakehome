@@ -28,6 +28,7 @@ public class BattleController : MonoBehaviour
     private int opponentShipsSunk = 0;
 
     private WsGameState _lastSnapshot;
+    private Coroutine _pendingHullRender;
 
     private readonly Color emptyColor = Color.white;
     private readonly Color shipColor = Color.gray;
@@ -411,8 +412,24 @@ public class BattleController : MonoBehaviour
         }
 
         Debug.Log($"[sync] Rendering hulls from fleet: placed {okCount}/{snapshot.YourFleet.Length}");
+
+        // Important: after refresh/reconnect, UI layout may not be settled yet.
+        // Defer hull rendering by a frame so GridCell RectTransforms report correct corners.
+        if (_pendingHullRender != null)
+        {
+            StopCoroutine(_pendingHullRender);
+        }
+        _pendingHullRender = StartCoroutine(RenderHullsNextFrame(b));
+    }
+
+    private IEnumerator RenderHullsNextFrame(Board board)
+    {
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+        if (playerGrid == null) yield break;
         playerGrid.ClearBattleDecorations();
-        playerGrid.RenderShipHullsFromBoard(b);
+        playerGrid.RenderShipHullsFromBoard(board);
+        _pendingHullRender = null;
     }
 
     private void RenderFromSnapshot(WsGameState snapshot)
