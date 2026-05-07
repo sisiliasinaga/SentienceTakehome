@@ -951,25 +951,19 @@ function serializeFleetForPlacement(
   for (const s of board.Ships) {
     if (!s.Coordinates || s.Coordinates.length === 0) continue;
 
-    const rows = s.Coordinates.map((c) => c.Row);
-    const cols = s.Coordinates.map((c) => c.Col);
-    const minRow = Math.min(...rows);
-    const minCol = Math.min(...cols);
-
-    const allSameRow = rows.every((r) => r === rows[0]);
+    const allSameRow = s.Coordinates.every((c) => c.Row === s.Coordinates[0]!.Row);
     const orientation: "Horizontal" | "Vertical" = allSameRow ? "Horizontal" : "Vertical";
 
-    // For horizontal, start at smallest col; for vertical, smallest row.
-    let startRow = minRow;
-    let startCol = minCol;
-    if (allSameRow) {
-      startRow = rows[0]!;
-      startCol = minCol;
-    } else {
-      startRow = minRow;
-      startCol = cols[0]!;
-      startCol = Math.min(...cols.filter((_, i) => rows[i] === minRow));
+    // Pick the lexicographically smallest coordinate as the ship "start".
+    // This matches the placement API's expected start cell for shipCells().
+    let start = s.Coordinates[0]!;
+    for (const c of s.Coordinates) {
+      if (c.Row < start.Row || (c.Row === start.Row && c.Col < start.Col)) {
+        start = c;
+      }
     }
+    const startRow = start.Row;
+    const startCol = start.Col;
 
     ships.push({
       ShipType: s.Type,

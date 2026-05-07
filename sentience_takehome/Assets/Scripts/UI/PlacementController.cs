@@ -80,6 +80,23 @@ public class PlacementController : MonoBehaviour
         // When the mainPanel opens, use the mode chosen in StartPanel.
         useMultiplayer = GameSession.Mode == GameMode.Multiplayer;
 
+        // If we have a persisted multiplayer session, avoid resetting UI/boards here.
+        // We'll wait for a server GameState snapshot to decide whether we're in Placement or Battle.
+        if (useMultiplayer &&
+            !string.IsNullOrEmpty(GameSession.RoomCode) &&
+            !string.IsNullOrEmpty(GameSession.PlayerToken))
+        {
+            ui.HideGameOver();
+            ui.ClearGameOver();
+            ui.SetFleetPlacementInfoVisible(false);
+            ui.SetTurnIndicatorVisible(true);
+            ui.SetFeedback("Reconnecting...");
+            if (confirmFleetButton != null) confirmFleetButton.SetActive(false);
+            if (resetFleetButton != null) resetFleetButton.SetActive(false);
+            if (autoPlaceButton != null) autoPlaceButton.SetActive(false);
+            return;
+        }
+
         ui.HideGameOver();
         ui.SetTurnIndicatorVisible(false);
         ui.SetFleetPlacementInfoVisible(true);
