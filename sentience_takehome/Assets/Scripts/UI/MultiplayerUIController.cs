@@ -17,6 +17,7 @@ public class MultiplayerUIController : MonoBehaviour
 
         wsClient.RoomCreated += OnRoomCreated;
         wsClient.Matched += OnMatched;
+        wsClient.Resumed += OnResumed;
 
         if (ui.createGameButton != null)
         {
@@ -32,6 +33,9 @@ public class MultiplayerUIController : MonoBehaviour
         {
             ui.joinCodeInputField.onSubmit.AddListener(OnJoinCodeSubmitted);
         }
+
+        // If the player refreshed mid-game, auto-reconnect and resume.
+        TryAutoResume();
     }
 
     private void OnDisable()
@@ -43,6 +47,7 @@ public class MultiplayerUIController : MonoBehaviour
 
         wsClient.RoomCreated -= OnRoomCreated;
         wsClient.Matched -= OnMatched;
+        wsClient.Resumed -= OnResumed;
 
         if (ui.createGameButton != null)
         {
@@ -58,6 +63,50 @@ public class MultiplayerUIController : MonoBehaviour
         {
             ui.joinCodeInputField.onSubmit.RemoveListener(OnJoinCodeSubmitted);
         }
+    }
+
+    private async void TryAutoResume()
+    {
+        // Only attempt if we have a persisted session.
+        if (string.IsNullOrEmpty(GameSession.RoomCode) || string.IsNullOrEmpty(GameSession.PlayerToken))
+        {
+            return;
+        }
+
+        GameSession.Mode = GameMode.Multiplayer;
+
+        // Show something immediately so it doesn't look like a "new game".
+        ui.ShowMultiplayerPanel();
+        if (ui.gameStatusText != null)
+        {
+            ui.gameStatusText.text = "Reconnecting...";
+        }
+
+        try
+        {
+            if (!wsClient.IsConnected)
+            {
+                await wsClient.Connect(wsClient.serverUrl);
+            }
+
+            await wsClient.Resume(GameSession.RoomCode, GameSession.PlayerToken);
+            // OnResumed (and then GameState) will transition into the right panel.
+        }
+        catch (System.Exception e)
+        {
+            if (ui.gameStatusText != null)
+            {
+                ui.gameStatusText.text = $"Reconnect failed: {e.Message}";
+            }
+        }
+    }
+
+    private void OnResumed(WsResumed msg)
+    {
+        // Resume succeeded; go to main panel where PlacementController/BattleController
+        // will react to the incoming GameState snapshot.
+        ui.ShowMainPanel();
+        ui.SetFeedback("Reconnected. Restoring game state...");
     }
 
     private async void OnCreateGameClicked()

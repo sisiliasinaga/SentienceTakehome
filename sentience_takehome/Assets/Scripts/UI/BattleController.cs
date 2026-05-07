@@ -28,7 +28,6 @@ public class BattleController : MonoBehaviour
     private int opponentShipsSunk = 0;
 
     private WsGameState _lastSnapshot;
-    private bool _snapshotDrivenRender = false;
 
     private readonly Color emptyColor = Color.white;
     private readonly Color shipColor = Color.gray;
@@ -278,9 +277,12 @@ public class BattleController : MonoBehaviour
     private void OnWsOpponentDisconnected()
     {
         if (!isMultiplayer) return;
-        gameOver = true;
+        // Don't end the match locally; allow the opponent to refresh and resume.
+        // The server keeps the room alive and will send a GameState snapshot on resume.
         opponentGrid.SetInteractable(false);
-        ui.ShowGameOver("Opponent disconnected", $"Turns: {turnCount}", $"Ships sunk: {opponentShipsSunk}/5");
+        ui.SetTurn(false);
+        ui.SetTurnIndicatorVisible(true);
+        ui.SetFeedback("Opponent disconnected. Waiting for them to reconnect...");
     }
 
     private void OnWsGameState(WsGameState msg)
@@ -301,7 +303,6 @@ public class BattleController : MonoBehaviour
 
         playerBoard = null;
         opponentBoard = null;
-        _snapshotDrivenRender = true;
 
         if (playerGrid != null)
         {
