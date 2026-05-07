@@ -86,10 +86,6 @@ public class MultiplayerUIController : MonoBehaviour
 
         GameSession.Mode = GameMode.Multiplayer;
 
-        // Show the main panel immediately; placement/battle will be restored by GameState.
-        ui.ShowMainPanel();
-        ui.SetFeedback("Reconnecting...");
-
         _autoResumeInFlight = true;
         try
         {
@@ -104,7 +100,9 @@ public class MultiplayerUIController : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            ui.SetFeedback($"Reconnect failed: {e.Message}");
+            // Stay on whatever panel the app is currently showing (usually StartPanel).
+            // A resume failure is not fatal; user can start/join a new game normally.
+            Debug.Log($"[auto-resume] failed: {e.Message}");
         }
         finally
         {
@@ -136,7 +134,6 @@ public class MultiplayerUIController : MonoBehaviour
         {
             GameSession.ClearMultiplayerSession();
             ui.ShowStartPanel();
-            ui.SetFeedback("Previous multiplayer session expired. Start a new game.");
         }
     }
 
