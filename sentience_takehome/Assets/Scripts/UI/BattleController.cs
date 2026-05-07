@@ -382,6 +382,15 @@ public class BattleController : MonoBehaviour
             return;
         }
 
+        // Prefer the player index from the resume/match handshake if present (it's a simple message and
+        // avoids any weirdness if snapshot fields default on schema mismatch).
+        var localIndex = wsClient != null && wsClient.PlayerIndex.HasValue ? wsClient.PlayerIndex.Value : snapshot.YourIndex;
+        if (localIndex != snapshot.YourIndex)
+        {
+            Debug.Log($"[snapshot] WARNING: snapshot.YourIndex={snapshot.YourIndex} but wsClient.PlayerIndex={localIndex}; using wsClient value");
+            snapshot.YourIndex = localIndex;
+        }
+
         Debug.Log($"[snapshot] v{snapshot.SchemaVersion} phase={snapshot.Phase} hasTurn={snapshot.HasTurn} currentTurn={snapshot.CurrentTurnIndex} you={snapshot.YourIndex} computedIsPlayerTurn={(snapshot.HasTurn && snapshot.CurrentTurnIndex == snapshot.YourIndex)} opponentConnected={snapshot.OpponentConnected}");
 
         // Clear any stale disconnect banner once the server says the opponent is back.

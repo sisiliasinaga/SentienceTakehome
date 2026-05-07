@@ -84,6 +84,7 @@ public class MultiplayerUIController : MonoBehaviour
             return;
         }
 
+        Debug.Log($"[auto-resume] attempting code={GameSession.RoomCode} tokenPrefix={(GameSession.PlayerToken.Length > 6 ? GameSession.PlayerToken.Substring(0, 6) : GameSession.PlayerToken)}");
         GameSession.Mode = GameMode.Multiplayer;
 
         _autoResumeInFlight = true;
@@ -116,6 +117,7 @@ public class MultiplayerUIController : MonoBehaviour
     {
         // Resume succeeded; go to main panel where PlacementController/BattleController
         // will react to the incoming GameState snapshot.
+        Debug.Log($"[auto-resume] resumed playerIndex={msg.PlayerIndex} code={msg.Code}");
         ui.ShowMainPanel();
         ui.SetFeedback("Reconnected. Restoring game state...");
     }
