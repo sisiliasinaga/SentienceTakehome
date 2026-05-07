@@ -178,6 +178,7 @@ public class MultiplayerUIController : MonoBehaviour
         // Persist for reconnect later.
         GameSession.RoomCode = msg.Code;
         GameSession.PlayerToken = msg.PlayerToken;
+        GameSession.SaveToPrefs();
 
         if (ui.joinCodeText != null)
         {
@@ -194,6 +195,7 @@ public class MultiplayerUIController : MonoBehaviour
         GameSession.Mode = GameMode.Multiplayer;
         GameSession.RoomCode = msg.Code;
         GameSession.PlayerToken = msg.PlayerToken;
+        GameSession.SaveToPrefs();
 
         // Once matched, go to the actual game placement panel.
         ui.ShowMainPanel();

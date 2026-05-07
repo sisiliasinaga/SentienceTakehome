@@ -51,7 +51,20 @@ public class PlacementController : MonoBehaviour
 
         if (useMultiplayer)
         {
+            if (wsClient != null)
+            {
+                wsClient.GameState -= OnWsGameState;
+                wsClient.GameState += OnWsGameState;
+            }
             _ = EnsureConnectedForMultiplayer();
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (wsClient != null)
+        {
+            wsClient.GameState -= OnWsGameState;
         }
     }
 
@@ -85,6 +98,11 @@ public class PlacementController : MonoBehaviour
 
         if (wsClient.IsConnected)
         {
+            // If we are connected but have a saved session, ask server for latest state.
+            if (!string.IsNullOrEmpty(GameSession.RoomCode) && !string.IsNullOrEmpty(GameSession.PlayerToken))
+            {
+                await wsClient.Resume(GameSession.RoomCode, GameSession.PlayerToken);
+            }
             return;
         }
 
@@ -104,6 +122,132 @@ public class PlacementController : MonoBehaviour
         {
             ui.SetFeedback($"Could not connect: {e.Message}");
         }
+    }
+
+    private void OnWsGameState(WsGameState msg)
+    {
+        // If we reconnect mid-battle, skip placement and restore battle view.
+        if (msg == null) return;
+        if (msg.Phase != "Battle" && msg.Phase != "Ended")
+        {
+            // Still allow placement restore.
+            if (msg.Phase == "Placement")
+            {
+                RestorePlacementFromSnapshot(msg);
+            }
+            return;
+        }
+
+        ui.SetFleetPlacementInfoVisible(false);
+        ClearPreview();
+        gridManager.ClearHoverHandlers();
+        battleController.StartMultiplayerFromSnapshot(wsClient, msg);
+        gameObject.SetActive(false);
+    }
+
+    private void RestorePlacementFromSnapshot(WsGameState msg)
+    {
+        if (gridManager == null || ui == null)
+        {
+            return;
+        }
+
+        // Rebuild board + fleet list so ConfirmFleet can submit to the server.
+        playerBoard = new Board();
+        placedFleet.Clear();
+
+        if (msg.YourFleet != null)
+        {
+            foreach (var s in msg.YourFleet)
+            {
+                if (s == null) continue;
+
+                if (!System.Enum.TryParse(s.ShipType, true, out ShipType shipType))
+                {
+                    continue;
+                }
+                if (!System.Enum.TryParse(s.Orientation, true, out Orientation orientation))
+                {
+                    orientation = Orientation.Horizontal;
+                }
+
+                var start = new Coordinate(s.Row, s.Col);
+                var ok = playerBoard.PlaceShip(shipType, start, orientation);
+                if (!ok)
+                {
+                    continue;
+                }
+
+                placedFleet.Add(new WsFleetShip
+                {
+                    ShipType = shipType.ToString(),
+                    Row = s.Row,
+                    Col = s.Col,
+                    Orientation = orientation.ToString()
+                });
+            }
+        }
+
+        allShipsPlaced = msg.AllShipsPlaced.HasValue ? msg.AllShipsPlaced.Value : playerBoard.AllShipsPlaced;
+
+        // Render grid underlays + hulls.
+        gridManager.ClearBattleDecorations();
+        gridManager.ClearGrid(emptyColor);
+        gridManager.RenderShipHullsFromBoard(playerBoard);
+        RefreshPlacementCellUnderlays();
+
+        // Update placement UI state.
+        useMultiplayer = true;
+        ui.SetFleetPlacementInfoVisible(true);
+        ui.SetTurnIndicatorVisible(false);
+        ui.HideGameOver();
+        ui.ClearGameOver();
+
+        currentShip = PickNextShipToPlace(placedFleet);
+        currentOrientation = Orientation.Horizontal;
+        ui.SetCurrentShip(currentShip);
+        ui.SetOrientation(currentOrientation);
+
+        // Buttons + messaging.
+        if (msg.YouReady)
+        {
+            if (confirmFleetButton != null) confirmFleetButton.SetActive(false);
+            if (resetFleetButton != null) resetFleetButton.SetActive(false);
+            if (autoPlaceButton != null) autoPlaceButton.SetActive(false);
+            ui.SetFeedback("Reconnected. Fleet submitted — waiting for opponent...");
+        }
+        else
+        {
+            if (resetFleetButton != null) resetFleetButton.SetActive(true);
+            if (autoPlaceButton != null) autoPlaceButton.SetActive(true);
+            if (confirmFleetButton != null) confirmFleetButton.SetActive(allShipsPlaced);
+            ui.SetFeedback(allShipsPlaced ? "Reconnected. Confirm your fleet when ready." : "Reconnected. Continue placing your fleet.");
+        }
+    }
+
+    private static ShipType PickNextShipToPlace(List<WsFleetShip> fleet)
+    {
+        var placed = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+        if (fleet != null)
+        {
+            foreach (var s in fleet)
+            {
+                if (s != null && !string.IsNullOrEmpty(s.ShipType))
+                {
+                    placed.Add(s.ShipType);
+                }
+            }
+        }
+
+        foreach (ShipType shipType in BattleshipRules.FleetOrder)
+        {
+            if (!placed.Contains(shipType.ToString()))
+            {
+                return shipType;
+            }
+        }
+
+        return ShipType.Destroyer;
     }
 
     // Update is called once per frame

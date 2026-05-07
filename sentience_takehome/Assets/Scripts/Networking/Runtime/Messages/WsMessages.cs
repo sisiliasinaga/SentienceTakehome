@@ -215,10 +215,15 @@ namespace SentienceTakehome.Networking
         public string Phase;
         public int YourIndex;
         public bool? YourTurn; // null if not in battle
+        public int? WinnerPlayerIndex; // set when Phase=="Ended"
         public bool YouReady;
         public bool OpponentReady;
         public bool OpponentConnected;
         public string[][] YourGrid;
         public string[][] OpponentGrid;
+
+        // Placement-phase rehydration (so refresh can restore your fleet layout).
+        public WsFleetShip[] YourFleet; // nullable unless Phase=="Placement"
+        public bool? AllShipsPlaced;    // nullable unless Phase=="Placement"
     }
 }

@@ -45,6 +45,7 @@ export class Room {
   private readonly ready: [boolean, boolean] = [false, false];
   private phase: Phase = "Placement";
   private currentTurn: 0 | 1 = 0;
+  private winnerIndex: 0 | 1 | null = null;
   private readonly playerTokens: [string, string];
 
   constructor(
@@ -181,6 +182,7 @@ export class Room {
 
   getSnapshotFor(slot: 0 | 1): Record<string, unknown> {
     const other = (1 - slot) as 0 | 1;
+    const ownBoard = this.boards[slot];
     return {
       Op: "GameState",
       RoomId: this.Id,
@@ -188,11 +190,14 @@ export class Room {
       Phase: this.phase,
       YourIndex: slot,
       YourTurn: this.phase === "Battle" ? this.currentTurn === slot : null,
+      WinnerPlayerIndex: this.phase === "Ended" ? this.winnerIndex : null,
       YouReady: this.ready[slot],
       OpponentReady: this.ready[other],
       OpponentConnected: this.sockets[other] !== null,
-      YourGrid: buildOwnGrid(this.boards[slot]),
+      YourGrid: buildOwnGrid(ownBoard),
       OpponentGrid: buildOpponentGrid(this.boards[other]),
+      YourFleet: this.phase === "Placement" ? serializeFleetForPlacement(ownBoard) : null,
+      AllShipsPlaced: this.phase === "Placement" ? ownBoard.AllShipsPlaced : null,
     };
   }
 
@@ -450,6 +455,7 @@ export class Room {
 
     if (board.AllShipsSunk) {
       this.phase = "Ended";
+      this.winnerIndex = slot;
       this.broadcastBoth({
         Op: "GameOver",
         WinnerPlayerIndex: slot,
@@ -901,4 +907,48 @@ function serializeBoard(board: Board): unknown {
     AllShipsPlaced: board.AllShipsPlaced,
     AllShipsSunk: board.AllShipsSunk,
   };
+}
+
+function serializeFleetForPlacement(
+  board: Board,
+): { ShipType: string; Row: number; Col: number; Orientation: "Horizontal" | "Vertical" }[] {
+  const ships: {
+    ShipType: string;
+    Row: number;
+    Col: number;
+    Orientation: "Horizontal" | "Vertical";
+  }[] = [];
+
+  for (const s of board.Ships) {
+    if (!s.Coordinates || s.Coordinates.length === 0) continue;
+
+    const rows = s.Coordinates.map((c) => c.Row);
+    const cols = s.Coordinates.map((c) => c.Col);
+    const minRow = Math.min(...rows);
+    const minCol = Math.min(...cols);
+
+    const allSameRow = rows.every((r) => r === rows[0]);
+    const orientation: "Horizontal" | "Vertical" = allSameRow ? "Horizontal" : "Vertical";
+
+    // For horizontal, start at smallest col; for vertical, smallest row.
+    let startRow = minRow;
+    let startCol = minCol;
+    if (allSameRow) {
+      startRow = rows[0]!;
+      startCol = minCol;
+    } else {
+      startRow = minRow;
+      startCol = cols[0]!;
+      startCol = Math.min(...cols.filter((_, i) => rows[i] === minRow));
+    }
+
+    ships.push({
+      ShipType: s.Type,
+      Row: startRow,
+      Col: startCol,
+      Orientation: orientation,
+    });
+  }
+
+  return ships;
 }

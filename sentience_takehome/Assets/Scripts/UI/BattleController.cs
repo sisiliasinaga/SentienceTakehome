@@ -27,6 +27,9 @@ public class BattleController : MonoBehaviour
     /// <summary>Enemy ships sunk by the local player (game over Ships sunk line).</summary>
     private int opponentShipsSunk = 0;
 
+    private WsGameState _lastSnapshot;
+    private bool _snapshotDrivenRender = false;
+
     private readonly Color emptyColor = Color.white;
     private readonly Color shipColor = Color.gray;
     private readonly Color hitColor = Color.red;
@@ -173,6 +176,7 @@ public class BattleController : MonoBehaviour
         wsClient.IncomingFire += OnWsIncomingFire;
         wsClient.GameOver += OnWsGameOver;
         wsClient.OpponentDisconnected += OnWsOpponentDisconnected;
+        wsClient.GameState += OnWsGameState;
     }
 
     private void UnwireMultiplayer()
@@ -184,6 +188,7 @@ public class BattleController : MonoBehaviour
         wsClient.IncomingFire -= OnWsIncomingFire;
         wsClient.GameOver -= OnWsGameOver;
         wsClient.OpponentDisconnected -= OnWsOpponentDisconnected;
+        wsClient.GameState -= OnWsGameState;
     }
 
     private void OnWsBattleStart(WsBattleStart msg)
@@ -276,6 +281,218 @@ public class BattleController : MonoBehaviour
         gameOver = true;
         opponentGrid.SetInteractable(false);
         ui.ShowGameOver("Opponent disconnected", $"Turns: {turnCount}", $"Ships sunk: {opponentShipsSunk}/5");
+    }
+
+    private void OnWsGameState(WsGameState msg)
+    {
+        if (!isMultiplayer) return;
+        _lastSnapshot = msg;
+        ApplySnapshot(msg);
+    }
+
+    /// <summary>
+    /// Rehydrate the battle UI from a server snapshot (used on reconnect/refresh).
+    /// </summary>
+    public void StartMultiplayerFromSnapshot(WsBattleshipClient client, WsGameState snapshot)
+    {
+        isMultiplayer = true;
+        wsClient = client;
+        WireMultiplayer();
+
+        playerBoard = null;
+        opponentBoard = null;
+        _snapshotDrivenRender = true;
+
+        if (playerGrid != null)
+        {
+            playerGrid.ClearHoverHandlers();
+        }
+
+        opponentGrid.GenerateGrid(OnOpponentGridClicked);
+
+        ui.SetTurnIndicatorVisible(true);
+        ui.SetFleetPlacementInfoVisible(false);
+        ui.ClearGameOver();
+
+        ApplySnapshot(snapshot);
+    }
+
+    private void ApplySnapshot(WsGameState snapshot)
+    {
+        if (snapshot == null)
+        {
+            return;
+        }
+
+        // Reconstruct basic counters for UI.
+        turnCount = CountOpponentShotsTaken(snapshot);
+        opponentShipsSunk = CountSunkShips(snapshot?.OpponentGrid);
+
+        // Phase/turn gating.
+        isPlayerTurn = snapshot.YourTurn.HasValue && snapshot.YourTurn.Value;
+        opponentGrid.SetInteractable(isPlayerTurn && snapshot.Phase == "Battle");
+        ui.SetTurn(isPlayerTurn);
+
+        // Render grids from snapshot.
+        RenderFromSnapshot(snapshot);
+
+        if (snapshot.Phase == "Ended")
+        {
+            gameOver = true;
+            opponentGrid.SetInteractable(false);
+            var youWin = snapshot.WinnerPlayerIndex.HasValue &&
+                         wsClient != null &&
+                         wsClient.PlayerIndex.HasValue &&
+                         wsClient.PlayerIndex.Value == snapshot.WinnerPlayerIndex.Value;
+            ui.ShowGameOver(youWin ? "You win!" : "Opponent wins!", $"Turns: {turnCount}", $"Ships sunk: {opponentShipsSunk}/5");
+            return;
+        }
+
+        gameOver = false;
+        if (snapshot.Phase == "Placement")
+        {
+            ui.SetTurnIndicatorVisible(false);
+            ui.SetFeedback("Reconnected. Finish fleet placement.");
+            return;
+        }
+
+        ui.SetTurnIndicatorVisible(true);
+        ui.SetFeedback(isPlayerTurn ? "Your turn. Choose a target." : "Enemy turn...");
+    }
+
+    private void RenderFromSnapshot(WsGameState snapshot)
+    {
+        if (playerGrid == null || opponentGrid == null)
+        {
+            return;
+        }
+
+        // Player grid: "Empty"|"Ship"|"Miss"|"Hit"|"Sunk"
+        if (snapshot.YourGrid != null)
+        {
+            for (var r = 0; r < snapshot.YourGrid.Length; r++)
+            {
+                var row = snapshot.YourGrid[r];
+                if (row == null) continue;
+                for (var c = 0; c < row.Length; c++)
+                {
+                    var coord = new Coordinate(r, c);
+                    var cell = row[c];
+                    playerGrid.SetCellColor(coord, ColorForOwnCell(cell));
+                }
+            }
+        }
+
+        // Opponent grid: "Unknown"|"Miss"|"Hit"|"Sunk"
+        if (snapshot.OpponentGrid != null)
+        {
+            for (var r = 0; r < snapshot.OpponentGrid.Length; r++)
+            {
+                var row = snapshot.OpponentGrid[r];
+                if (row == null) continue;
+                for (var c = 0; c < row.Length; c++)
+                {
+                    var coord = new Coordinate(r, c);
+                    var cell = row[c];
+                    opponentGrid.SetCellColor(coord, ColorForOpponentCell(cell));
+                }
+            }
+        }
+    }
+
+    private Color ColorForOwnCell(string cell)
+    {
+        return cell switch
+        {
+            "Ship" => shipColor,
+            "Miss" => missColor,
+            "Hit" => hitColor,
+            "Sunk" => hitColor,
+            _ => emptyColor,
+        };
+    }
+
+    private Color ColorForOpponentCell(string cell)
+    {
+        return cell switch
+        {
+            "Miss" => missColor,
+            "Hit" => hitColor,
+            "Sunk" => hitColor,
+            // "Unknown" or anything else stays neutral.
+            _ => emptyColor,
+        };
+    }
+
+    private static int CountOpponentShotsTaken(WsGameState snapshot)
+    {
+        if (snapshot?.OpponentGrid == null) return 0;
+        int count = 0;
+        foreach (var row in snapshot.OpponentGrid)
+        {
+            if (row == null) continue;
+            foreach (var cell in row)
+            {
+                if (!string.IsNullOrEmpty(cell) && cell != "Unknown")
+                {
+                    count++;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int CountSunkShips(string[][] opponentGrid)
+    {
+        if (opponentGrid == null) return 0;
+
+        int rows = opponentGrid.Length;
+        if (rows == 0) return 0;
+        int cols = opponentGrid[0]?.Length ?? 0;
+        if (cols == 0) return 0;
+
+        var visited = new bool[rows, cols];
+        int ships = 0;
+
+        for (int r = 0; r < rows; r++)
+        {
+            var row = opponentGrid[r];
+            if (row == null) continue;
+            for (int c = 0; c < row.Length; c++)
+            {
+                if (visited[r, c]) continue;
+                if (row[c] != "Sunk") continue;
+
+                ships++;
+                FloodFillSunk(opponentGrid, visited, r, c);
+            }
+        }
+
+        return ships;
+    }
+
+    private static void FloodFillSunk(string[][] grid, bool[,] visited, int sr, int sc)
+    {
+        var stack = new Stack<(int r, int c)>();
+        stack.Push((sr, sc));
+        visited[sr, sc] = true;
+
+        while (stack.Count > 0)
+        {
+            var (r, c) = stack.Pop();
+            foreach (var (dr, dc) in OrthogonalDirections)
+            {
+                int nr = r + dr;
+                int nc = c + dc;
+                if (nr < 0 || nc < 0 || nr >= grid.Length) continue;
+                var row = grid[nr];
+                if (row == null || nc >= row.Length) continue;
+                if (visited[nr, nc]) continue;
+                if (row[nc] != "Sunk") continue;
+                visited[nr, nc] = true;
+                stack.Push((nr, nc));
+            }
+        }
     }
 
     private void RenderShotOnOpponentGrid(ShotResult result)
@@ -502,6 +719,7 @@ public class BattleController : MonoBehaviour
 
     public void ReturntoMainMenu()
     {
+        SentienceTakehome.GameSession.ClearMultiplayerSession();
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 

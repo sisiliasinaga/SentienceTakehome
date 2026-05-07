@@ -42,6 +42,12 @@ public class GameUIController : MonoBehaviour
     public TMP_Text gameOverTurnsText;
     public TMP_Text gameOverShipsSunkText;
 
+    private void Awake()
+    {
+        // Enables refresh/reload resume in multiplayer: restore RoomCode/PlayerToken early.
+        GameSession.LoadFromPrefs();
+    }
+
     public void SetCurrentShip(ShipType shipType)
     {
         currentShipText.text = $"Current ship: {shipType}";
@@ -125,7 +131,7 @@ public class GameUIController : MonoBehaviour
 
     public void ShowStartPanel()
     {
-        GameSession.Mode = GameMode.VsAI;
+        // Keep any persisted session info; mode is set by the button that opens the next panel.
         startPanel.SetActive(true);
         mainPanel.SetActive(false);
         multiplayerPanel.SetActive(false);
