@@ -10,22 +10,22 @@ public class MultiplayerUIController : MonoBehaviour
 
     private void OnEnable()
     {
+        // Always prefer the shared websocket client (survives refresh/reload flows).
+        var shared = SentienceTakehome.Networking.WsBattleshipClient.Instance;
+        if (shared != null && wsClient != shared)
+        {
+            wsClient = shared;
+        }
+
         if (ui == null || wsClient == null)
         {
-            // In WebGL refresh flows, ensure we attach to the shared websocket client.
-            if (wsClient == null)
-            {
-                wsClient = SentienceTakehome.Networking.WsBattleshipClient.Instance;
-            }
-            if (ui == null || wsClient == null)
-            {
-                return;
-            }
+            return;
         }
 
         wsClient.RoomCreated += OnRoomCreated;
         wsClient.Matched += OnMatched;
         wsClient.Resumed += OnResumed;
+        wsClient.Error += OnWsError;
 
         if (ui.createGameButton != null)
         {
@@ -56,6 +56,7 @@ public class MultiplayerUIController : MonoBehaviour
         wsClient.RoomCreated -= OnRoomCreated;
         wsClient.Matched -= OnMatched;
         wsClient.Resumed -= OnResumed;
+        wsClient.Error -= OnWsError;
 
         if (ui.createGameButton != null)
         {
@@ -83,12 +84,9 @@ public class MultiplayerUIController : MonoBehaviour
 
         GameSession.Mode = GameMode.Multiplayer;
 
-        // Show something immediately so it doesn't look like a "new game".
-        ui.ShowMultiplayerPanel();
-        if (ui.gameStatusText != null)
-        {
-            ui.gameStatusText.text = "Reconnecting...";
-        }
+        // Show the main panel immediately; placement/battle will be restored by GameState.
+        ui.ShowMainPanel();
+        ui.SetFeedback("Reconnecting...");
 
         try
         {
@@ -103,10 +101,7 @@ public class MultiplayerUIController : MonoBehaviour
         }
         catch (System.Exception e)
         {
-            if (ui.gameStatusText != null)
-            {
-                ui.gameStatusText.text = $"Reconnect failed: {e.Message}";
-            }
+            ui.SetFeedback($"Reconnect failed: {e.Message}");
         }
     }
 
@@ -116,6 +111,17 @@ public class MultiplayerUIController : MonoBehaviour
         // will react to the incoming GameState snapshot.
         ui.ShowMainPanel();
         ui.SetFeedback("Reconnected. Restoring game state...");
+    }
+
+    private void OnWsError(WsError err)
+    {
+        // If we have stale saved credentials, don't force the user into multiplayer on load.
+        if (err == null) return;
+        if (err.Code == "RoomNotFound" || err.Code == "BadToken" || err.Code == "NotMatched")
+        {
+            GameSession.ClearMultiplayerSession();
+            ui.ShowStartPanel();
+        }
     }
 
     private async void OnCreateGameClicked()

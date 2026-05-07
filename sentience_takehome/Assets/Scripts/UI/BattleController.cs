@@ -298,7 +298,9 @@ public class BattleController : MonoBehaviour
     public void StartMultiplayerFromSnapshot(WsBattleshipClient client, WsGameState snapshot)
     {
         isMultiplayer = true;
-        wsClient = client;
+
+        var shared = SentienceTakehome.Networking.WsBattleshipClient.Instance;
+        wsClient = shared != null ? shared : client;
         WireMultiplayer();
 
         playerBoard = null;

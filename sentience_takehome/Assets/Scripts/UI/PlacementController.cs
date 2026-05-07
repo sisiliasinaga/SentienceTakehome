@@ -51,9 +51,11 @@ public class PlacementController : MonoBehaviour
 
         if (useMultiplayer)
         {
-            if (wsClient == null)
+            // Always prefer the shared websocket client instance.
+            var shared = SentienceTakehome.Networking.WsBattleshipClient.Instance;
+            if (shared != null && wsClient != shared)
             {
-                wsClient = SentienceTakehome.Networking.WsBattleshipClient.Instance;
+                wsClient = shared;
             }
             if (wsClient != null)
             {
