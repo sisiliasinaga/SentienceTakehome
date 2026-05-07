@@ -226,9 +226,11 @@ namespace SentienceTakehome.Networking
         public string Code;
         public string Phase;
         public int YourIndex;
-        // Avoid nullable booleans: Unity JsonUtility can drop bool? as null.
-        // Use CurrentTurnIndex + YourIndex to compute turn ownership reliably.
+        // Back/forward compat:
+        // - Prefer CurrentTurnIndex + YourIndex for reliability.
+        // - Also include YourTurn for mixed-client sessions.
         public int CurrentTurnIndex; // -1 if not in battle
+        public bool YourTurn; // false if not in battle
         public int? WinnerPlayerIndex; // set when Phase=="Ended"
         public bool YouReady;
         public bool OpponentReady;

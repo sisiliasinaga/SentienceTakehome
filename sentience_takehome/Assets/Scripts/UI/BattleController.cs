@@ -351,7 +351,9 @@ public class BattleController : MonoBehaviour
         opponentShipsSunk = CountSunkShips(snapshot?.OpponentGridFlat);
 
         // Phase/turn gating.
-        isPlayerTurn = snapshot.CurrentTurnIndex >= 0 && snapshot.CurrentTurnIndex == snapshot.YourIndex;
+        isPlayerTurn = snapshot.CurrentTurnIndex >= 0
+            ? snapshot.CurrentTurnIndex == snapshot.YourIndex
+            : snapshot.YourTurn;
         opponentGrid.SetInteractable(isPlayerTurn && snapshot.Phase == "Battle");
         ui.SetTurn(isPlayerTurn);
 
