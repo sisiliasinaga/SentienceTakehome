@@ -224,10 +224,12 @@ public class BattleController : MonoBehaviour
     private void OnWsTurn(WsTurn msg)
     {
         if (!isMultiplayer) return;
+        Debug.Log($"[turn-msg] Yours={msg.Yours} (before) isPlayerTurn={isPlayerTurn} phase={_lastSnapshot?.Phase} hasTurn={_lastSnapshot != null && _lastSnapshot.HasTurn} currentTurn={_lastSnapshot?.CurrentTurnIndex} you={_lastSnapshot?.YourIndex}");
         isPlayerTurn = msg.Yours;
         ui.SetTurnIndicatorVisible(true);
         ui.SetTurn(isPlayerTurn);
         opponentGrid.SetInteractable(isPlayerTurn);
+        Debug.Log($"[turn-msg] applied isPlayerTurn={isPlayerTurn} opponentInteractable={isPlayerTurn}");
         if (isPlayerTurn)
         {
             ui.SetFeedback("Your turn. Choose a target.");
@@ -380,6 +382,8 @@ public class BattleController : MonoBehaviour
             return;
         }
 
+        Debug.Log($"[snapshot] v{snapshot.SchemaVersion} phase={snapshot.Phase} hasTurn={snapshot.HasTurn} currentTurn={snapshot.CurrentTurnIndex} you={snapshot.YourIndex} computedIsPlayerTurn={(snapshot.HasTurn && snapshot.CurrentTurnIndex == snapshot.YourIndex)} opponentConnected={snapshot.OpponentConnected}");
+
         // Clear any stale disconnect banner once the server says the opponent is back.
         if (_opponentDisconnectedBanner && snapshot.OpponentConnected)
         {
@@ -395,8 +399,10 @@ public class BattleController : MonoBehaviour
 
         // Phase/turn gating.
         isPlayerTurn = snapshot.HasTurn && snapshot.CurrentTurnIndex == snapshot.YourIndex;
-        opponentGrid.SetInteractable(isPlayerTurn && snapshot.Phase == "Battle");
+        var canFire = isPlayerTurn && snapshot.Phase == "Battle";
+        opponentGrid.SetInteractable(canFire);
         ui.SetTurn(isPlayerTurn);
+        Debug.Log($"[snapshot] applied isPlayerTurn={isPlayerTurn} opponentInteractable={canFire}");
 
         // Render grids from snapshot.
         RenderFromSnapshot(snapshot);
