@@ -20,6 +20,8 @@ namespace SentienceTakehome.Networking
     /// </summary>
     public class WsBattleshipClient : MonoBehaviour
     {
+        public static WsBattleshipClient Instance { get; private set; }
+
         [Header("Connection")]
         [Tooltip("Example: ws://localhost:8080/ws")]
         public string serverUrl = "ws://localhost:8080/ws";
@@ -74,6 +76,18 @@ namespace SentienceTakehome.Networking
         private Task _recvLoop;
 #endif
         private readonly ConcurrentQueue<Action> _mainThread = new();
+
+        private void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
 
         private void Start()
         {
@@ -219,6 +233,8 @@ namespace SentienceTakehome.Networking
 
         public Task Resume(string code, string playerToken) =>
             SendJson(new WsResume { Code = code, PlayerToken = playerToken });
+
+        public Task RequestState() => SendJson(new WsGetState());
 
         public Task SubmitFleet(WsFleetShip[] ships)
         {

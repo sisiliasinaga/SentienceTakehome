@@ -51,6 +51,10 @@ public class PlacementController : MonoBehaviour
 
         if (useMultiplayer)
         {
+            if (wsClient == null)
+            {
+                wsClient = SentienceTakehome.Networking.WsBattleshipClient.Instance;
+            }
             if (wsClient != null)
             {
                 wsClient.GameState -= OnWsGameState;
@@ -102,6 +106,7 @@ public class PlacementController : MonoBehaviour
             if (!string.IsNullOrEmpty(GameSession.RoomCode) && !string.IsNullOrEmpty(GameSession.PlayerToken))
             {
                 await wsClient.Resume(GameSession.RoomCode, GameSession.PlayerToken);
+                await wsClient.RequestState();
             }
             return;
         }
@@ -116,6 +121,7 @@ public class PlacementController : MonoBehaviour
             if (!string.IsNullOrEmpty(GameSession.RoomCode) && !string.IsNullOrEmpty(GameSession.PlayerToken))
             {
                 await wsClient.Resume(GameSession.RoomCode, GameSession.PlayerToken);
+                await wsClient.RequestState();
             }
         }
         catch (System.Exception e)

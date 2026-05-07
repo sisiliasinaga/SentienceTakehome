@@ -85,6 +85,12 @@ namespace SentienceTakehome.Networking
         public string PlayerToken;
     }
 
+    [Serializable]
+    public class WsGetState
+    {
+        public string Op = "GetState";
+    }
+
     // ---- Server -> Client ----
 
     [Serializable]

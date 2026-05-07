@@ -12,7 +12,15 @@ public class MultiplayerUIController : MonoBehaviour
     {
         if (ui == null || wsClient == null)
         {
-            return;
+            // In WebGL refresh flows, ensure we attach to the shared websocket client.
+            if (wsClient == null)
+            {
+                wsClient = SentienceTakehome.Networking.WsBattleshipClient.Instance;
+            }
+            if (ui == null || wsClient == null)
+            {
+                return;
+            }
         }
 
         wsClient.RoomCreated += OnRoomCreated;
@@ -90,6 +98,7 @@ public class MultiplayerUIController : MonoBehaviour
             }
 
             await wsClient.Resume(GameSession.RoomCode, GameSession.PlayerToken);
+            await wsClient.RequestState();
             // OnResumed (and then GameState) will transition into the right panel.
         }
         catch (System.Exception e)
