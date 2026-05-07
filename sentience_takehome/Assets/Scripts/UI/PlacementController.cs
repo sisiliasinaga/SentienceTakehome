@@ -82,9 +82,7 @@ public class PlacementController : MonoBehaviour
 
         // If we have a persisted multiplayer session, avoid resetting UI/boards here.
         // We'll wait for a server GameState snapshot to decide whether we're in Placement or Battle.
-        if (useMultiplayer &&
-            !string.IsNullOrEmpty(GameSession.RoomCode) &&
-            !string.IsNullOrEmpty(GameSession.PlayerToken))
+        if (useMultiplayer && GameSession.AutoResumeInFlight)
         {
             ui.HideGameOver();
             ui.ClearGameOver();

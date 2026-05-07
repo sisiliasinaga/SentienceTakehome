@@ -18,6 +18,9 @@ namespace SentienceTakehome
         public static string RoomCode;
         public static string PlayerToken;
 
+        // Not persisted: used to prevent placement UI from re-initializing during refresh resume.
+        public static bool AutoResumeInFlight = false;
+
         private const string PrefRoomCode = "SentienceTakehome.RoomCode";
         private const string PrefPlayerToken = "SentienceTakehome.PlayerToken";
         private const string PrefMode = "SentienceTakehome.GameMode";
@@ -46,6 +49,7 @@ namespace SentienceTakehome
         {
             RoomCode = null;
             PlayerToken = null;
+            AutoResumeInFlight = false;
             UnityEngine.PlayerPrefs.DeleteKey(PrefRoomCode);
             UnityEngine.PlayerPrefs.DeleteKey(PrefPlayerToken);
             UnityEngine.PlayerPrefs.Save();

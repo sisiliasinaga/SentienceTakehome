@@ -87,6 +87,7 @@ public class MultiplayerUIController : MonoBehaviour
         GameSession.Mode = GameMode.Multiplayer;
 
         _autoResumeInFlight = true;
+        GameSession.AutoResumeInFlight = true;
         try
         {
             if (!wsClient.IsConnected)
@@ -107,6 +108,7 @@ public class MultiplayerUIController : MonoBehaviour
         finally
         {
             _autoResumeInFlight = false;
+            GameSession.AutoResumeInFlight = false;
         }
     }
 
