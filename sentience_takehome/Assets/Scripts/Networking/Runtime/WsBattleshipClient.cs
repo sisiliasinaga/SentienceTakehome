@@ -65,6 +65,7 @@ namespace SentienceTakehome.Networking
         public event Action<WsFireRejected> FireRejected;
         public event Action<WsGameOver> GameOver;
         public event Action OpponentDisconnected;
+        public event Action OpponentReconnected;
         public event Action<WsResumed> Resumed;
         public event Action<WsGameState> GameState;
 
@@ -403,6 +404,9 @@ namespace SentienceTakehome.Networking
                     break;
                 case "OpponentDisconnected":
                     EnqueueMain(() => OpponentDisconnected?.Invoke());
+                    break;
+                case "OpponentReconnected":
+                    EnqueueMain(() => OpponentReconnected?.Invoke());
                     break;
                 case "Resumed":
                 {

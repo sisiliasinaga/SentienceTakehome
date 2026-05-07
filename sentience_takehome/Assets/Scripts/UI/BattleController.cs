@@ -175,6 +175,7 @@ public class BattleController : MonoBehaviour
         wsClient.IncomingFire += OnWsIncomingFire;
         wsClient.GameOver += OnWsGameOver;
         wsClient.OpponentDisconnected += OnWsOpponentDisconnected;
+        wsClient.OpponentReconnected += OnWsOpponentReconnected;
         wsClient.GameState += OnWsGameState;
     }
 
@@ -187,6 +188,7 @@ public class BattleController : MonoBehaviour
         wsClient.IncomingFire -= OnWsIncomingFire;
         wsClient.GameOver -= OnWsGameOver;
         wsClient.OpponentDisconnected -= OnWsOpponentDisconnected;
+        wsClient.OpponentReconnected -= OnWsOpponentReconnected;
         wsClient.GameState -= OnWsGameState;
     }
 
@@ -285,6 +287,13 @@ public class BattleController : MonoBehaviour
         ui.SetFeedback("Opponent disconnected. Waiting for them to reconnect...");
     }
 
+    private void OnWsOpponentReconnected()
+    {
+        if (!isMultiplayer) return;
+        // A GameState snapshot should follow; keep UI neutral until then.
+        ui.SetFeedback("Opponent reconnected. Syncing...");
+    }
+
     private void OnWsGameState(WsGameState msg)
     {
         if (!isMultiplayer) return;
@@ -333,6 +342,9 @@ public class BattleController : MonoBehaviour
             return;
         }
 
+        // Render ship hull sprites (your own fleet) if provided.
+        TryRenderHullOverlaysFromFleet(snapshot);
+
         // Reconstruct basic counters for UI.
         turnCount = CountOpponentShotsTaken(snapshot);
         opponentShipsSunk = CountSunkShips(snapshot?.OpponentGridFlat);
@@ -367,6 +379,30 @@ public class BattleController : MonoBehaviour
 
         ui.SetTurnIndicatorVisible(true);
         ui.SetFeedback(isPlayerTurn ? "Your turn. Choose a target." : "Enemy turn...");
+    }
+
+    private void TryRenderHullOverlaysFromFleet(WsGameState snapshot)
+    {
+        if (playerGrid == null || snapshot?.YourFleet == null || snapshot.YourFleet.Length == 0)
+        {
+            return;
+        }
+
+        var b = new Board();
+        foreach (var s in snapshot.YourFleet)
+        {
+            if (s == null) continue;
+            if (!System.Enum.TryParse(s.ShipType, true, out ShipType shipType)) continue;
+            if (!System.Enum.TryParse(s.Orientation, true, out Orientation orientation))
+            {
+                orientation = Orientation.Horizontal;
+            }
+
+            b.PlaceShip(shipType, new Coordinate(s.Row, s.Col), orientation);
+        }
+
+        playerGrid.ClearBattleDecorations();
+        playerGrid.RenderShipHullsFromBoard(b);
     }
 
     private void RenderFromSnapshot(WsGameState snapshot)

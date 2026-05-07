@@ -204,6 +204,12 @@ namespace SentienceTakehome.Networking
     }
 
     [Serializable]
+    public class WsOpponentReconnected
+    {
+        public string Op;
+    }
+
+    [Serializable]
     public class WsResumed
     {
         public string Op;

@@ -177,6 +177,16 @@ export class Room {
 
     this.sockets[slot] = ws;
     ws.on("close", () => this.handleDisconnect(slot));
+
+    // Tell the other player the opponent is back (fresh snapshot clears "waiting" UI).
+    const other = (1 - slot) as 0 | 1;
+    const otherWs = this.sockets[other];
+    if (wsIsOpen(otherWs)) {
+      send(otherWs, { Op: "OpponentReconnected" });
+      send(otherWs, this.getSnapshotFor(other));
+      // Also re-send turn state so their interactable gating is correct.
+      this.sendTurnState();
+    }
     return slot;
   }
 
@@ -196,7 +206,9 @@ export class Room {
       OpponentConnected: this.sockets[other] !== null,
       YourGridFlat: flattenGrid(buildOwnGrid(ownBoard)),
       OpponentGridFlat: flattenGrid(buildOpponentGrid(this.boards[other])),
-      YourFleet: this.phase === "Placement" ? serializeFleetForPlacement(ownBoard) : null,
+      // Always include your fleet so the client can render hull sprites after refresh.
+      // This never reveals the opponent's ship placements.
+      YourFleet: serializeFleetForPlacement(ownBoard),
       AllShipsPlaced: this.phase === "Placement" ? ownBoard.AllShipsPlaced : null,
     };
   }
