@@ -225,8 +225,10 @@ namespace SentienceTakehome.Networking
         public bool YouReady;
         public bool OpponentReady;
         public bool OpponentConnected;
-        public string[][] YourGrid;
-        public string[][] OpponentGrid;
+        // NOTE: Unity JsonUtility doesn't reliably handle nested arrays (string[][]).
+        // Use flat row-major arrays length 100 (r*10+c).
+        public string[] YourGridFlat;
+        public string[] OpponentGridFlat;
 
         // Placement-phase rehydration (so refresh can restore your fleet layout).
         public WsFleetShip[] YourFleet; // nullable unless Phase=="Placement"

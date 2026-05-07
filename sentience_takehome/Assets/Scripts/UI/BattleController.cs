@@ -335,7 +335,7 @@ public class BattleController : MonoBehaviour
 
         // Reconstruct basic counters for UI.
         turnCount = CountOpponentShotsTaken(snapshot);
-        opponentShipsSunk = CountSunkShips(snapshot?.OpponentGrid);
+        opponentShipsSunk = CountSunkShips(snapshot?.OpponentGridFlat);
 
         // Phase/turn gating.
         isPlayerTurn = snapshot.YourTurn.HasValue && snapshot.YourTurn.Value;
@@ -376,34 +376,30 @@ public class BattleController : MonoBehaviour
             return;
         }
 
-        // Player grid: "Empty"|"Ship"|"Miss"|"Hit"|"Sunk"
-        if (snapshot.YourGrid != null)
+        // Player grid flat: "Empty"|"Ship"|"Miss"|"Hit"|"Sunk" (len 100)
+        if (snapshot.YourGridFlat != null && snapshot.YourGridFlat.Length >= 100)
         {
-            for (var r = 0; r < snapshot.YourGrid.Length; r++)
+            for (var r = 0; r < 10; r++)
             {
-                var row = snapshot.YourGrid[r];
-                if (row == null) continue;
-                for (var c = 0; c < row.Length; c++)
+                for (var c = 0; c < 10; c++)
                 {
-                    var coord = new Coordinate(r, c);
-                    var cell = row[c];
-                    playerGrid.SetCellColor(coord, ColorForOwnCell(cell));
+                    var idx = (r * 10) + c;
+                    var cell = snapshot.YourGridFlat[idx];
+                    playerGrid.SetCellColor(new Coordinate(r, c), ColorForOwnCell(cell));
                 }
             }
         }
 
-        // Opponent grid: "Unknown"|"Miss"|"Hit"|"Sunk"
-        if (snapshot.OpponentGrid != null)
+        // Opponent grid flat: "Unknown"|"Miss"|"Hit"|"Sunk" (len 100)
+        if (snapshot.OpponentGridFlat != null && snapshot.OpponentGridFlat.Length >= 100)
         {
-            for (var r = 0; r < snapshot.OpponentGrid.Length; r++)
+            for (var r = 0; r < 10; r++)
             {
-                var row = snapshot.OpponentGrid[r];
-                if (row == null) continue;
-                for (var c = 0; c < row.Length; c++)
+                for (var c = 0; c < 10; c++)
                 {
-                    var coord = new Coordinate(r, c);
-                    var cell = row[c];
-                    opponentGrid.SetCellColor(coord, ColorForOpponentCell(cell));
+                    var idx = (r * 10) + c;
+                    var cell = snapshot.OpponentGridFlat[idx];
+                    opponentGrid.SetCellColor(new Coordinate(r, c), ColorForOpponentCell(cell));
                 }
             }
         }
@@ -435,52 +431,41 @@ public class BattleController : MonoBehaviour
 
     private static int CountOpponentShotsTaken(WsGameState snapshot)
     {
-        if (snapshot?.OpponentGrid == null) return 0;
+        if (snapshot?.OpponentGridFlat == null) return 0;
         int count = 0;
-        foreach (var row in snapshot.OpponentGrid)
+        foreach (var cell in snapshot.OpponentGridFlat)
         {
-            if (row == null) continue;
-            foreach (var cell in row)
+            if (!string.IsNullOrEmpty(cell) && cell != "Unknown")
             {
-                if (!string.IsNullOrEmpty(cell) && cell != "Unknown")
-                {
-                    count++;
-                }
+                count++;
             }
         }
         return count;
     }
 
-    private static int CountSunkShips(string[][] opponentGrid)
+    private static int CountSunkShips(string[] opponentGridFlat)
     {
-        if (opponentGrid == null) return 0;
+        if (opponentGridFlat == null || opponentGridFlat.Length < 100) return 0;
 
-        int rows = opponentGrid.Length;
-        if (rows == 0) return 0;
-        int cols = opponentGrid[0]?.Length ?? 0;
-        if (cols == 0) return 0;
-
-        var visited = new bool[rows, cols];
+        var visited = new bool[10, 10];
         int ships = 0;
 
-        for (int r = 0; r < rows; r++)
+        for (int r = 0; r < 10; r++)
         {
-            var row = opponentGrid[r];
-            if (row == null) continue;
-            for (int c = 0; c < row.Length; c++)
+            for (int c = 0; c < 10; c++)
             {
                 if (visited[r, c]) continue;
-                if (row[c] != "Sunk") continue;
+                if (opponentGridFlat[(r * 10) + c] != "Sunk") continue;
 
                 ships++;
-                FloodFillSunk(opponentGrid, visited, r, c);
+                FloodFillSunk(opponentGridFlat, visited, r, c);
             }
         }
 
         return ships;
     }
 
-    private static void FloodFillSunk(string[][] grid, bool[,] visited, int sr, int sc)
+    private static void FloodFillSunk(string[] gridFlat, bool[,] visited, int sr, int sc)
     {
         var stack = new Stack<(int r, int c)>();
         stack.Push((sr, sc));
@@ -493,11 +478,9 @@ public class BattleController : MonoBehaviour
             {
                 int nr = r + dr;
                 int nc = c + dc;
-                if (nr < 0 || nc < 0 || nr >= grid.Length) continue;
-                var row = grid[nr];
-                if (row == null || nc >= row.Length) continue;
+                if (nr < 0 || nc < 0 || nr >= 10 || nc >= 10) continue;
                 if (visited[nr, nc]) continue;
-                if (row[nc] != "Sunk") continue;
+                if (gridFlat[(nr * 10) + nc] != "Sunk") continue;
                 visited[nr, nc] = true;
                 stack.Push((nr, nc));
             }

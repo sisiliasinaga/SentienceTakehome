@@ -194,8 +194,8 @@ export class Room {
       YouReady: this.ready[slot],
       OpponentReady: this.ready[other],
       OpponentConnected: this.sockets[other] !== null,
-      YourGrid: buildOwnGrid(ownBoard),
-      OpponentGrid: buildOpponentGrid(this.boards[other]),
+      YourGridFlat: flattenGrid(buildOwnGrid(ownBoard)),
+      OpponentGridFlat: flattenGrid(buildOpponentGrid(this.boards[other])),
       YourFleet: this.phase === "Placement" ? serializeFleetForPlacement(ownBoard) : null,
       AllShipsPlaced: this.phase === "Placement" ? ownBoard.AllShipsPlaced : null,
     };
@@ -899,6 +899,17 @@ function buildOpponentGrid(board: Board): OppCellState[][] {
   }
 
   return grid;
+}
+
+function flattenGrid<T extends string>(grid: T[][]): T[] {
+  const out: T[] = [];
+  for (let r = 0; r < grid.length; r++) {
+    const row = grid[r] ?? [];
+    for (let c = 0; c < row.length; c++) {
+      out.push(row[c]!);
+    }
+  }
+  return out;
 }
 
 function serializeBoard(board: Board): unknown {
