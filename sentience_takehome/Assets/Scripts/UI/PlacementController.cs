@@ -136,7 +136,12 @@ public class PlacementController : MonoBehaviour
     {
         // If we reconnect mid-battle, skip placement and restore battle view.
         if (msg == null) return;
-        ui.SetFeedback($"[sync] GameState Phase={msg.Phase} Code={msg.Code} YouReady={msg.YouReady} OppReady={msg.OpponentReady}");
+        var dbg = $"[sync] GameState Phase={msg.Phase} Code={msg.Code} YouReady={msg.YouReady} OppReady={msg.OpponentReady}";
+        if (ui != null)
+        {
+            ui.SetFeedback(dbg);
+        }
+        Debug.Log(dbg);
         if (msg.Phase != "Battle" && msg.Phase != "Ended")
         {
             // Still allow placement restore.
