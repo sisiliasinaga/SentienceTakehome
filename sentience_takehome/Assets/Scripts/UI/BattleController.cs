@@ -500,16 +500,9 @@ public class BattleController : MonoBehaviour
         (-1, 0), (1, 0), (0, -1), (0, 1)
     };
 
-    public void Rematch()
-    {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-        ui.HideStartPanel();
-        ui.ShowMainPanel();
-    }
-
     public void ReturntoMainMenu()
     {
-        SceneManager.LoadScene("MainMenu");
+        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 
     private void OnDestroy()
