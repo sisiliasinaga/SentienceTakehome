@@ -18,6 +18,7 @@ public class GridManager : MonoBehaviour
     public Sprite destroyerSprite;
 
     private GridCell[,] cells = new GridCell[10, 10];
+    private bool _generated = false;
 
     private RectTransform _frontShipLayer;
     private readonly List<HullRecord> _hullRecords = new();
@@ -57,6 +58,23 @@ public class GridManager : MonoBehaviour
         System.Action<Coordinate> onCellHover = null,
         System.Action onCellHoverExit = null)
     {
+        // If the grid already exists (e.g., after refresh/resume), just rebind handlers.
+        if (_generated && cells[0, 0] != null)
+        {
+            for (int row = 0; row < 10; row++)
+            {
+                for (int col = 0; col < 10; col++)
+                {
+                    var cell = cells[row, col];
+                    if (cell != null)
+                    {
+                        cell.Init(row, col, onCellClick, onCellHover, onCellHoverExit);
+                    }
+                }
+            }
+            return;
+        }
+
         for (int row = 0; row < 10; row++)
         {
             for (int col = 0; col < 10; col++)
@@ -66,6 +84,7 @@ public class GridManager : MonoBehaviour
                 cells[row, col] = cell;
             }
         }
+        _generated = true;
     }
 
     public void SetCellColor(Coordinate coord, Color color)

@@ -85,6 +85,10 @@ public class PlacementController : MonoBehaviour
         ui.SetFleetPlacementInfoVisible(true);
 
         playerBoard = new Board();
+        if (gridManager != null)
+        {
+            gridManager.gameObject.SetActive(true);
+        }
         gridManager.GenerateGrid(OnCellClicked, OnCellHovered, OnHoverExitGrid);
         confirmFleetButton.SetActive(false);
 
@@ -155,6 +159,10 @@ public class PlacementController : MonoBehaviour
         ui.SetFleetPlacementInfoVisible(false);
         ClearPreview();
         gridManager.ClearHoverHandlers();
+        if (confirmFleetButton != null) confirmFleetButton.SetActive(false);
+        if (resetFleetButton != null) resetFleetButton.SetActive(false);
+        if (autoPlaceButton != null) autoPlaceButton.SetActive(false);
+        if (gridManager != null) gridManager.gameObject.SetActive(false);
         battleController.StartMultiplayerFromSnapshot(wsClient, msg);
         gameObject.SetActive(false);
     }
@@ -169,6 +177,7 @@ public class PlacementController : MonoBehaviour
         // Rebuild board + fleet list so ConfirmFleet can submit to the server.
         playerBoard = new Board();
         placedFleet.Clear();
+        gridManager.gameObject.SetActive(true);
 
         if (msg.YourFleet != null)
         {
@@ -526,6 +535,7 @@ public class PlacementController : MonoBehaviour
         ui.SetFleetPlacementInfoVisible(false);
         ClearPreview();
         gridManager.ClearHoverHandlers();
+        if (gridManager != null) gridManager.gameObject.SetActive(false);
         ui.SetFeedback("Fleet confirmed. Submitting to server...");
         _ = wsClient.SubmitFleet(placedFleet.ToArray());
         _ = wsClient.ReadyUp();
@@ -545,6 +555,7 @@ public class PlacementController : MonoBehaviour
     {
         lastHoveredCell = null;
         ClearPreview();
+        if (gridManager != null) gridManager.gameObject.SetActive(true);
 
         playerBoard = new Board();
         placedFleet.Clear();
@@ -571,6 +582,7 @@ public class PlacementController : MonoBehaviour
     {
         lastHoveredCell = null;
         ClearPreview();
+        if (gridManager != null) gridManager.gameObject.SetActive(true);
 
         playerBoard = new Board();
         placedFleet.Clear();
