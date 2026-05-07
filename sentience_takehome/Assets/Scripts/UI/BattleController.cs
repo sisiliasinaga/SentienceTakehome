@@ -336,7 +336,7 @@ public class BattleController : MonoBehaviour
     {
         if (!isMultiplayer) return;
         _lastSnapshot = msg;
-        var dbg = $"[sync] GameState Phase={msg.Phase} Code={msg.Code} CurrentTurn={msg.CurrentTurnIndex} You={msg.YourIndex}";
+        var dbg = $"[sync] GameState v{msg.SchemaVersion} Phase={msg.Phase} HasTurn={msg.HasTurn} CurrentTurn={msg.CurrentTurnIndex} You={msg.YourIndex} Code={msg.Code}";
         if (ui != null)
         {
             ui.SetFeedback(dbg);
@@ -394,9 +394,7 @@ public class BattleController : MonoBehaviour
         opponentShipsSunk = CountSunkShips(snapshot?.OpponentGridFlat);
 
         // Phase/turn gating.
-        isPlayerTurn = snapshot.CurrentTurnIndex >= 0
-            ? snapshot.CurrentTurnIndex == snapshot.YourIndex
-            : snapshot.YourTurn;
+        isPlayerTurn = snapshot.HasTurn && snapshot.CurrentTurnIndex == snapshot.YourIndex;
         opponentGrid.SetInteractable(isPlayerTurn && snapshot.Phase == "Battle");
         ui.SetTurn(isPlayerTurn);
 

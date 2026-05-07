@@ -222,6 +222,7 @@ namespace SentienceTakehome.Networking
     public class WsGameState
     {
         public string Op;
+        public int SchemaVersion; // bump when snapshot shape changes
         public string RoomId;
         public string Code;
         public string Phase;
@@ -229,8 +230,9 @@ namespace SentienceTakehome.Networking
         // Back/forward compat:
         // - Prefer CurrentTurnIndex + YourIndex for reliability.
         // - Also include YourTurn for mixed-client sessions.
-        public int CurrentTurnIndex; // -1 if not in battle
-        public bool YourTurn; // false if not in battle
+        public bool HasTurn; // true iff Phase=="Battle"
+        public int CurrentTurnIndex; // valid iff HasTurn==true
+        public bool YourTurn; // fallback for older clients
         public int? WinnerPlayerIndex; // set when Phase=="Ended"
         public bool YouReady;
         public bool OpponentReady;

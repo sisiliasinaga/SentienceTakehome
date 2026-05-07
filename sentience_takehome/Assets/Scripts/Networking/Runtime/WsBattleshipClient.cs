@@ -422,7 +422,7 @@ namespace SentienceTakehome.Networking
                     var s = JsonUtility.FromJson<WsGameState>(json);
                     RoomId = s.RoomId;
                     RoomCode = s.Code;
-                    IsYourTurn = s.CurrentTurnIndex >= 0 ? s.CurrentTurnIndex == s.YourIndex : s.YourTurn;
+                    IsYourTurn = s.HasTurn ? s.CurrentTurnIndex == s.YourIndex : (bool?)null;
                     EnqueueMain(() => GameState?.Invoke(s));
                     break;
                 }

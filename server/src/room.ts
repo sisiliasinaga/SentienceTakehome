@@ -195,10 +195,12 @@ export class Room {
     const ownBoard = this.boards[slot];
     return {
       Op: "GameState",
+      SchemaVersion: 2,
       RoomId: this.Id,
       Code: this.Code,
       Phase: this.phase,
       YourIndex: slot,
+      HasTurn: this.phase === "Battle",
       CurrentTurnIndex: this.phase === "Battle" ? this.currentTurn : -1,
       YourTurn: this.phase === "Battle" ? this.currentTurn === slot : false,
       WinnerPlayerIndex: this.phase === "Ended" ? this.winnerIndex : null,
