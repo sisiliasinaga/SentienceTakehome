@@ -8,6 +8,8 @@ public class MultiplayerUIController : MonoBehaviour
     public GameUIController ui;
     public WsBattleshipClient wsClient;
 
+    private bool _autoResumeInFlight = false;
+
     private void OnEnable()
     {
         // Always prefer the shared websocket client (survives refresh/reload flows).
@@ -88,6 +90,7 @@ public class MultiplayerUIController : MonoBehaviour
         ui.ShowMainPanel();
         ui.SetFeedback("Reconnecting...");
 
+        _autoResumeInFlight = true;
         try
         {
             if (!wsClient.IsConnected)
@@ -103,6 +106,10 @@ public class MultiplayerUIController : MonoBehaviour
         {
             ui.SetFeedback($"Reconnect failed: {e.Message}");
         }
+        finally
+        {
+            _autoResumeInFlight = false;
+        }
     }
 
     private void OnResumed(WsResumed msg)
@@ -115,12 +122,21 @@ public class MultiplayerUIController : MonoBehaviour
 
     private void OnWsError(WsError err)
     {
-        // If we have stale saved credentials, don't force the user into multiplayer on load.
         if (err == null) return;
-        if (err.Code == "RoomNotFound" || err.Code == "BadToken" || err.Code == "NotMatched")
+
+        // Only auto-clear session during the auto-resume attempt. Otherwise, errors can
+        // arrive during normal UI actions (like opening Join panel) and would cause
+        // surprising panel navigation.
+        if (!_autoResumeInFlight)
+        {
+            return;
+        }
+
+        if (err.Code == "RoomNotFound" || err.Code == "BadToken")
         {
             GameSession.ClearMultiplayerSession();
             ui.ShowStartPanel();
+            ui.SetFeedback("Previous multiplayer session expired. Start a new game.");
         }
     }
 
