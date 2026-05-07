@@ -199,7 +199,7 @@ export class Room {
       Code: this.Code,
       Phase: this.phase,
       YourIndex: slot,
-      YourTurn: this.phase === "Battle" ? this.currentTurn === slot : null,
+      CurrentTurnIndex: this.phase === "Battle" ? this.currentTurn : -1,
       WinnerPlayerIndex: this.phase === "Ended" ? this.winnerIndex : null,
       YouReady: this.ready[slot],
       OpponentReady: this.ready[other],

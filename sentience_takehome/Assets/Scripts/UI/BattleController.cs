@@ -298,7 +298,7 @@ public class BattleController : MonoBehaviour
     {
         if (!isMultiplayer) return;
         _lastSnapshot = msg;
-        var dbg = $"[sync] GameState Phase={msg.Phase} Code={msg.Code} YourTurn={msg.YourTurn}";
+        var dbg = $"[sync] GameState Phase={msg.Phase} Code={msg.Code} CurrentTurn={msg.CurrentTurnIndex} You={msg.YourIndex}";
         if (ui != null)
         {
             ui.SetFeedback(dbg);
@@ -350,7 +350,7 @@ public class BattleController : MonoBehaviour
         opponentShipsSunk = CountSunkShips(snapshot?.OpponentGridFlat);
 
         // Phase/turn gating.
-        isPlayerTurn = snapshot.YourTurn.HasValue && snapshot.YourTurn.Value;
+        isPlayerTurn = snapshot.CurrentTurnIndex >= 0 && snapshot.CurrentTurnIndex == snapshot.YourIndex;
         opponentGrid.SetInteractable(isPlayerTurn && snapshot.Phase == "Battle");
         ui.SetTurn(isPlayerTurn);
 
@@ -385,10 +385,12 @@ public class BattleController : MonoBehaviour
     {
         if (playerGrid == null || snapshot?.YourFleet == null || snapshot.YourFleet.Length == 0)
         {
+            Debug.Log("[sync] No YourFleet received; cannot render hull sprites.");
             return;
         }
 
         var b = new Board();
+        int okCount = 0;
         foreach (var s in snapshot.YourFleet)
         {
             if (s == null) continue;
@@ -398,9 +400,17 @@ public class BattleController : MonoBehaviour
                 orientation = Orientation.Horizontal;
             }
 
-            b.PlaceShip(shipType, new Coordinate(s.Row, s.Col), orientation);
+            if (b.PlaceShip(shipType, new Coordinate(s.Row, s.Col), orientation))
+            {
+                okCount++;
+            }
+            else
+            {
+                Debug.Log($"[sync] Failed PlaceShip {shipType} at ({s.Row},{s.Col}) {orientation}");
+            }
         }
 
+        Debug.Log($"[sync] Rendering hulls from fleet: placed {okCount}/{snapshot.YourFleet.Length}");
         playerGrid.ClearBattleDecorations();
         playerGrid.RenderShipHullsFromBoard(b);
     }
