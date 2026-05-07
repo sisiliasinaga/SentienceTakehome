@@ -37,6 +37,7 @@ public class GridCell : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 
     private void HandleClick()
     {
+        Debug.Log($"[grid-click] {gameObject.name} row={Row} col={Col} onClick={(OnCellClicked != null)}");
         OnCellClicked?.Invoke(new Coordinate(Row, Col));
     }
 

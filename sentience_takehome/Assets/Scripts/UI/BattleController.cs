@@ -99,15 +99,27 @@ public class BattleController : MonoBehaviour
 
     private void OnOpponentGridClicked(Coordinate coord)
     {
-        if (gameOver || !isPlayerTurn) return;
+        Debug.Log($"[fire-click] coord={coord.Row},{coord.Col} gameOver={gameOver} isPlayerTurn={isPlayerTurn} isMultiplayer={isMultiplayer} connected={(wsClient != null && wsClient.IsConnected)}");
+        if (gameOver)
+        {
+            Debug.Log("[fire-click] ignored: gameOver");
+            return;
+        }
+        if (!isPlayerTurn)
+        {
+            Debug.Log("[fire-click] ignored: not your turn");
+            return;
+        }
 
         if (isMultiplayer)
         {
             if (wsClient == null || !wsClient.IsConnected)
             {
+                Debug.Log("[fire-click] blocked: ws not connected");
                 ui.SetFeedback("Not connected. Reconnecting...");
                 return;
             }
+            Debug.Log("[fire-click] sending FireAt");
             _ = wsClient.FireAt(coord);
             // turn state will be updated by server via Turn message
             return;
